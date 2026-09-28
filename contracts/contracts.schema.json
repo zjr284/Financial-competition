@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://financial-ai.local/contracts/1.0.0/contracts.schema.json",
+  "title": "金融投研智能体公共契约 v1.0.0",
+  "$defs": {
+    "Id": {"type": "string", "pattern": "^(doc|ev|fact|run|calc|review|event)_[A-Za-z0-9_-]+$"},
+    "Decimal": {"type": "string", "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"},
+    "Date": {"type": "string", "format": "date"},
+    "DateTime": {"type": "string", "format": "date-time"},
+    "Unit": {"enum": ["CNY", "share", "percent", "times", "count", "ton", "day", "none"]},
+    "TaskType": {"enum": ["structured_extraction", "financial_analysis", "industry_impact", "valuation", "research_verification", "investment_memo", "report_quality"]},
+    "RunStatus": {"enum": ["queued", "running", "needs_review", "succeeded", "failed", "cancelled"]},
+    "ReviewStatus": {"enum": ["verified", "needs_review", "rejected"]},
+    "Error": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "message", "details", "retryable", "run_id"],
+      "properties": {
+        "code": {"enum": ["VALIDATION_ERROR", "DOCUMENT_UNSUPPORTED", "FILE_TOO_LARGE", "DOCUMENT_PARSE_FAILED", "RESOURCE_NOT_FOUND", "EVIDENCE_NOT_FOUND", "MISSING_INPUT", "PERIOD_MISMATCH", "SCOPE_MISMATCH", "CALCULATION_UNDEFINED", "MODEL_UNAVAILABLE", "RUN_NOT_READY", "REVIEW_REQUIRED", "INTERNAL_ERROR"]},
+        "message": {"type": "string", "minLength": 1},
+        "details": {"type": "object"},
+        "retryable": {"type": "boolean"},
+        "run_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}
+      }
+    },
+    "Document": {
+      "type": "object", "additionalProperties": false,
+      "required": ["document_id", "filename", "media_type", "sha256", "source_url", "disclosure_date", "ingested_at", "page_count", "parse_status"],
+      "properties": {
+        "document_id": {"$ref": "#/$defs/Id"},
+        "filename": {"type": "string", "minLength": 1},
+        "media_type": {"enum": ["application/pdf", "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "source_url": {"type": ["string", "null"], "format": "uri"},
+        "disclosure_date": {"oneOf": [{"$ref": "#/$defs/Date"}, {"type": "null"}]},
+        "ingested_at": {"$ref": "#/$defs/DateTime"},
+        "page_count": {"type": "integer", "minimum": 1},
+        "parse_status": {"enum": ["pending", "parsed", "failed"]}
+      }
+    },
+    "Evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidence_id", "document_id", "page", "bbox", "text", "extraction_method", "confidence"],
+      "properties": {
+        "evidence_id": {"$ref": "#/$defs/Id"},
+        "document_id": {"$ref": "#/$defs/Id"},
+        "page": {"type": "integer", "minimum": 1},
+        "bbox": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 0, "maximum": 1000}, {"type": "integer", "minimum": 0, "maximum": 1000}, {"type": "integer", "minimum": 0, "maximum": 1000}, {"type": "integer", "minimum": 0, "maximum": 1000}], "items": false, "minItems": 4, "maxItems": 4},
+        "text": {"type": "string", "minLength": 1},
+        "extraction_method": {"enum": ["pdf_text", "ocr", "table", "manual"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "table_id": {"type": ["string", "null"]},
+        "row": {"type": ["integer", "null"], "minimum": 1},
+        "column": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "Fact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fact_id", "company_code", "metric", "value", "unit", "period_start", "period_end", "period_type", "statement_scope", "restated", "evidence_ids", "review_status", "reason"],
+      "properties": {
+        "fact_id": {"$ref": "#/$defs/Id"},
+        "company_code": {"type": "string", "pattern": "^[0-9]{6}$"},
+        "metric": {"type": "string", "minLength": 1},
+        "value": {"oneOf": [{"$ref": "#/$defs/Decimal"}, {"type": "null"}]},
+        "unit": {"$ref": "#/$defs/Unit"},
+        "period_start": {"$ref": "#/$defs/Date"},
+        "period_end": {"$ref": "#/$defs/Date"},
+        "period_type": {"enum": ["instant", "cumulative", "single_quarter"]},
+        "statement_scope": {"enum": ["consolidated", "parent", "not_applicable"]},
+        "restated": {"type": "boolean"},
+        "evidence_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Id"}},
+        "review_status": {"$ref": "#/$defs/ReviewStatus"},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "Calculation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["calculation_id", "formula_code", "input_fact_ids", "input_calculation_ids", "parameters", "value", "unit", "rounding_rule", "status", "reason"],
+      "properties": {
+        "calculation_id": {"$ref": "#/$defs/Id"},
+        "formula_code": {"type": "string", "minLength": 1},
+        "input_fact_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}},
+        "input_calculation_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}},
+        "parameters": {"type": "object", "additionalProperties": {"type": ["string", "boolean", "null"]}},
+        "value": {"oneOf": [{"$ref": "#/$defs/Decimal"}, {"type": "null"}]},
+        "unit": {"$ref": "#/$defs/Unit"},
+        "rounding_rule": {"type": "string", "minLength": 1},
+        "status": {"$ref": "#/$defs/ReviewStatus"},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "ReviewItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["review_id", "target_id", "reason", "status", "evidence_ids"],
+      "properties": {
+        "review_id": {"$ref": "#/$defs/Id"},
+        "target_id": {"$ref": "#/$defs/Id"},
+        "reason": {"type": "string", "minLength": 1},
+        "status": {"enum": ["pending", "accepted", "rejected", "corrected"]},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}
+      }
+    },
+    "ReviewDecision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["decision", "reviewer", "note", "corrected_value"],
+      "properties": {
+        "decision": {"enum": ["accept", "reject", "correct"]},
+        "reviewer": {"type": "string", "minLength": 1},
+        "note": {"type": "string", "minLength": 1},
+        "corrected_value": {"type": ["string", "null"]}
+      }
+    },
+    "Run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["api_version", "run_id", "task_type", "status", "document_ids", "created_at", "started_at", "finished_at", "model_id", "model_revision", "prompt_version", "code_version", "input_hash", "result_hash", "error"],
+      "properties": {
+        "api_version": {"const": "1.0.0"},
+        "run_id": {"$ref": "#/$defs/Id"},
+        "task_type": {"$ref": "#/$defs/TaskType"},
+        "status": {"$ref": "#/$defs/RunStatus"},
+        "document_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Id"}},
+        "created_at": {"$ref": "#/$defs/DateTime"},
+        "started_at": {"oneOf": [{"$ref": "#/$defs/DateTime"}, {"type": "null"}]},
+        "finished_at": {"oneOf": [{"$ref": "#/$defs/DateTime"}, {"type": "null"}]},
+        "model_id": {"type": "string", "minLength": 1},
+        "model_revision": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "code_version": {"type": "string", "minLength": 1},
+        "input_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "result_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "error": {"oneOf": [{"$ref": "#/$defs/Error"}, {"type": "null"}]}
+      }
+    },
+    "RunRequest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["api_version", "task_type", "document_ids", "task_input"],
+      "properties": {
+        "api_version": {"const": "1.0.0"},
+        "task_type": {"$ref": "#/$defs/TaskType"},
+        "document_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}},
+        "task_input": {"type": "object"}
+      },
+      "allOf": [
+        {"if": {"properties": {"task_type": {"const": "structured_extraction"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/ExtractionInput"}}}},
+        {"if": {"properties": {"task_type": {"const": "financial_analysis"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/FinancialInput"}}}},
+        {"if": {"properties": {"task_type": {"const": "industry_impact"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/IndustryInput"}}}},
+        {"if": {"properties": {"task_type": {"const": "valuation"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/ValuationInput"}}}},
+        {"if": {"properties": {"task_type": {"const": "research_verification"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/VerificationInput"}}}},
+        {"if": {"properties": {"task_type": {"const": "investment_memo"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/MemoInput"}}}},
+        {"if": {"properties": {"task_type": {"const": "report_quality"}}}, "then": {"properties": {"task_input": {"$ref": "#/$defs/QualityInput"}}}}
+      ]
+    },
+    "ExtractionInput": {
+      "type": "object", "additionalProperties": false, "required": ["announcement_types"],
+      "properties": {"announcement_types": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["pledge", "bid_award", "equity_change"]}}}
+    },
+    "FinancialInput": {
+      "type": "object", "additionalProperties": false, "required": ["company_code", "periods", "statement_scope"],
+      "properties": {"company_code": {"type": "string", "pattern": "^[0-9]{6}$"}, "periods": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/Date"}}, "statement_scope": {"enum": ["consolidated", "parent"]}}
+    },
+    "IndustryInput": {
+      "type": "object", "additionalProperties": false, "required": ["focus_company_code", "event_description", "scenario_ids"],
+      "properties": {"focus_company_code": {"type": "string", "pattern": "^[0-9]{6}$"}, "event_description": {"type": "string", "minLength": 1}, "scenario_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}
+    },
+    "ValuationInput": {
+      "type": "object", "additionalProperties": false, "required": ["company_code", "method", "as_of_date", "statement_scope"],
+      "properties": {"company_code": {"type": "string", "pattern": "^[0-9]{6}$"}, "method": {"enum": ["dcf", "relative_pe"]}, "as_of_date": {"$ref": "#/$defs/Date"}, "statement_scope": {"enum": ["consolidated", "parent"]}, "assumption_overrides": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Decimal"}}}
+    },
+    "VerificationInput": {
+      "type": "object", "additionalProperties": false, "required": ["draft_document_id", "company_code"],
+      "properties": {"draft_document_id": {"$ref": "#/$defs/Id"}, "company_code": {"type": "string", "pattern": "^[0-9]{6}$"}}
+    },
+    "MemoInput": {
+      "type": "object", "additionalProperties": false, "required": ["company_code", "as_of_date"],
+      "properties": {"company_code": {"type": "string", "pattern": "^[0-9]{6}$"}, "as_of_date": {"$ref": "#/$defs/Date"}}
+    },
+    "QualityInput": {
+      "type": "object", "additionalProperties": false, "required": ["report_document_ids"],
+      "properties": {"report_document_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}}}
+    },
+    "FieldValue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field_code", "raw_value", "value", "unit", "evidence_ids", "status", "reason"],
+      "properties": {
+        "field_code": {"type": "string", "minLength": 1},
+        "raw_value": {"type": ["string", "null"]},
+        "value": {"type": ["string", "null"]},
+        "unit": {"$ref": "#/$defs/Unit"},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}},
+        "status": {"$ref": "#/$defs/ReviewStatus"},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "Alert": {
+      "type": "object", "additionalProperties": false,
+      "required": ["alert_code", "severity", "description", "fact_ids", "evidence_ids", "interpretation_status"],
+      "properties": {"alert_code": {"type": "string", "minLength": 1}, "severity": {"enum": ["low", "medium", "high"]}, "description": {"type": "string", "minLength": 1}, "fact_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}, "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}, "interpretation_status": {"enum": ["supported", "hypothesis", "unresolved"]}}
+    },
+    "GroundedStatement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["text", "kind", "evidence_ids", "assumptions", "limitations"],
+      "properties": {"text": {"type": "string", "minLength": 1}, "kind": {"enum": ["fact", "calculation", "inference", "opinion"]}, "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}, "assumptions": {"type": "array", "items": {"type": "string"}}, "limitations": {"type": "array", "items": {"type": "string"}}}
+    },
+    "ExtractionData": {
+      "type": "object", "additionalProperties": false, "required": ["records"],
+      "properties": {"records": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["event_id", "document_id", "company_code", "event_date", "announcement_type", "fields"], "properties": {"event_id": {"type": "string", "minLength": 1}, "document_id": {"$ref": "#/$defs/Id"}, "company_code": {"type": "string", "pattern": "^[0-9]{6}$"}, "event_date": {"oneOf": [{"$ref": "#/$defs/Date"}, {"type": "null"}]}, "announcement_type": {"enum": ["pledge", "bid_award", "equity_change"]}, "fields": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/FieldValue"}}}}}}
+    },
+    "FinancialData": {
+      "type": "object", "additionalProperties": false, "required": ["facts", "alerts"],
+      "properties": {"facts": {"type": "array", "items": {"$ref": "#/$defs/Fact"}}, "alerts": {"type": "array", "items": {"$ref": "#/$defs/Alert"}}}
+    },
+    "IndustryData": {
+      "type": "object", "additionalProperties": false, "required": ["nodes", "edges", "scenarios", "conclusions"],
+      "properties": {
+        "nodes": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["node_id", "name", "stage"], "properties": {"node_id": {"type": "string"}, "name": {"type": "string"}, "stage": {"enum": ["upstream", "midstream", "downstream", "company"]}}}},
+        "edges": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["from_id", "to_id", "mechanism", "direction", "evidence_ids"], "properties": {"from_id": {"type": "string"}, "to_id": {"type": "string"}, "mechanism": {"type": "string"}, "direction": {"enum": ["positive", "negative", "uncertain"]}, "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}}}},
+        "scenarios": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["scenario_id", "assumptions", "impact_text", "evidence_ids"], "properties": {"scenario_id": {"type": "string"}, "assumptions": {"type": "array", "items": {"type": "string"}}, "impact_text": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}}}},
+        "conclusions": {"type": "array", "items": {"$ref": "#/$defs/GroundedStatement"}}
+      }
+    },
+    "ValuationData": {
+      "type": "object", "additionalProperties": false, "required": ["method", "as_of_date", "assumptions", "valuation_range", "sensitivity"],
+      "properties": {
+        "method": {"enum": ["dcf", "relative_pe"]}, "as_of_date": {"$ref": "#/$defs/Date"},
+        "assumptions": {"type": "array", "items": {"$ref": "#/$defs/GroundedStatement"}},
+        "valuation_range": {"type": "object", "additionalProperties": false, "required": ["low", "base", "high", "unit", "reason"], "properties": {"low": {"oneOf": [{"$ref": "#/$defs/Decimal"}, {"type": "null"}]}, "base": {"oneOf": [{"$ref": "#/$defs/Decimal"}, {"type": "null"}]}, "high": {"oneOf": [{"$ref": "#/$defs/Decimal"}, {"type": "null"}]}, "unit": {"$ref": "#/$defs/Unit"}, "reason": {"type": ["string", "null"]}}},
+        "sensitivity": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["parameter_a", "value_a", "parameter_b", "value_b", "valuation", "unit"], "properties": {"parameter_a": {"type": "string"}, "value_a": {"$ref": "#/$defs/Decimal"}, "parameter_b": {"type": "string"}, "value_b": {"$ref": "#/$defs/Decimal"}, "valuation": {"$ref": "#/$defs/Decimal"}, "unit": {"$ref": "#/$defs/Unit"}}}}
+      }
+    },
+    "VerificationData": {
+      "type": "object", "additionalProperties": false, "required": ["checks", "summary"],
+      "properties": {
+        "checks": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["claim_id", "sentence", "draft_evidence_id", "decision", "error_type", "severity", "source_evidence_ids", "calculation_id", "suggested_edit", "reason"], "properties": {"claim_id": {"type": "string"}, "sentence": {"type": "string"}, "draft_evidence_id": {"$ref": "#/$defs/Id"}, "decision": {"enum": ["correct", "incorrect", "needs_review"]}, "error_type": {"enum": ["none", "number", "unit", "period", "scope", "valuation_multiple", "citation", "overclaim", "insufficient_evidence"]}, "severity": {"enum": ["low", "medium", "high"]}, "source_evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}, "calculation_id": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}, "suggested_edit": {"type": ["string", "null"]}, "reason": {"type": "string"}}}},
+        "summary": {"type": "object", "additionalProperties": false, "required": ["correct", "incorrect", "needs_review"], "properties": {"correct": {"type": "integer", "minimum": 0}, "incorrect": {"type": "integer", "minimum": 0}, "needs_review": {"type": "integer", "minimum": 0}}}
+      }
+    },
+    "MemoData": {
+      "type": "object", "additionalProperties": false, "required": ["thesis", "evidence", "risks", "disconfirming_conditions", "monitoring_indicators"],
+      "properties": {"thesis": {"type": "array", "items": {"$ref": "#/$defs/GroundedStatement"}}, "evidence": {"type": "array", "items": {"$ref": "#/$defs/GroundedStatement"}}, "risks": {"type": "array", "items": {"$ref": "#/$defs/GroundedStatement"}}, "disconfirming_conditions": {"type": "array", "items": {"$ref": "#/$defs/GroundedStatement"}}, "monitoring_indicators": {"type": "array", "items": {"type": "string"}}}
+    },
+    "QualityData": {
+      "type": "object", "additionalProperties": false, "required": ["rubric", "report_scores", "review_items"],
+      "properties": {
+        "rubric": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["dimension", "weight", "criterion"], "properties": {"dimension": {"type": "string"}, "weight": {"type": "integer", "minimum": 0, "maximum": 100}, "criterion": {"type": "string"}}}},
+        "report_scores": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["document_id", "score", "deductions"], "properties": {"document_id": {"$ref": "#/$defs/Id"}, "score": {"type": "integer", "minimum": 0, "maximum": 100}, "deductions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["dimension", "points", "reason", "evidence_ids"], "properties": {"dimension": {"type": "string"}, "points": {"type": "integer", "minimum": 0}, "reason": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}}}}}}}},
+        "review_items": {"type": "array", "items": {"$ref": "#/$defs/ReviewItem"}}
+      }
+    },
+    "TaskResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["api_version", "run_id", "task_type", "status", "generated_at", "input_document_ids", "data", "evidence_ids", "calculations", "review_items", "warnings"],
+      "properties": {
+        "api_version": {"const": "1.0.0"}, "run_id": {"$ref": "#/$defs/Id"}, "task_type": {"$ref": "#/$defs/TaskType"},
+        "status": {"enum": ["succeeded", "needs_review"]}, "generated_at": {"$ref": "#/$defs/DateTime"},
+        "input_document_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Id"}},
+        "data": {"type": "object"}, "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/Id"}},
+        "calculations": {"type": "array", "items": {"$ref": "#/$defs/Calculation"}},
+        "review_items": {"type": "array", "items": {"$ref": "#/$defs/ReviewItem"}},
+        "warnings": {"type": "array", "items": {"type": "string"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"task_type": {"const": "structured_extraction"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/ExtractionData"}}}},
+        {"if": {"properties": {"task_type": {"const": "financial_analysis"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/FinancialData"}}}},
+        {"if": {"properties": {"task_type": {"const": "industry_impact"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/IndustryData"}}}},
+        {"if": {"properties": {"task_type": {"const": "valuation"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/ValuationData"}}}},
+        {"if": {"properties": {"task_type": {"const": "research_verification"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/VerificationData"}}}},
+        {"if": {"properties": {"task_type": {"const": "investment_memo"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/MemoData"}}}},
+        {"if": {"properties": {"task_type": {"const": "report_quality"}}}, "then": {"properties": {"data": {"$ref": "#/$defs/QualityData"}}}}
+      ]
+    },
+    "Event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event_id", "run_id", "timestamp", "event_type", "tool_name", "input_hash", "output_hash", "message"],
+      "properties": {"event_id": {"$ref": "#/$defs/Id"}, "run_id": {"$ref": "#/$defs/Id"}, "timestamp": {"$ref": "#/$defs/DateTime"}, "event_type": {"enum": ["state", "file_access", "tool_call", "model_call", "calculation", "export", "error"]}, "tool_name": {"type": ["string", "null"]}, "input_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}, "output_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}, "message": {"type": "string"}}
+    },
+    "EventPage": {
+      "type": "object", "additionalProperties": false, "required": ["events", "next_cursor"],
+      "properties": {"events": {"type": "array", "items": {"$ref": "#/$defs/Event"}}, "next_cursor": {"type": ["string", "null"]}}
+    },
+    "Health": {
+      "type": "object", "additionalProperties": false, "required": ["status", "api_version", "model_available"],
+      "properties": {"status": {"enum": ["ok", "degraded"]}, "api_version": {"const": "1.0.0"}, "model_available": {"type": "boolean"}}
+    }
+  }
+}

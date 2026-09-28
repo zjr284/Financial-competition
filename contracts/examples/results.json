@@ -1,0 +1,37 @@
+[
+  {
+    "api_version": "1.0.0", "run_id": "run_extract_demo", "task_type": "structured_extraction", "status": "succeeded", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_announcement_demo"],
+    "data": {"records": [{"event_id": "pledge_001", "document_id": "doc_announcement_demo", "company_code": "999999", "event_date": "2026-09-01", "announcement_type": "pledge", "fields": [{"field_code": "pledged_shares", "raw_value": "1,000万股", "value": "10000000", "unit": "share", "evidence_ids": ["ev_announcement_01"], "status": "verified", "reason": null}]}]},
+    "evidence_ids": ["ev_announcement_01"], "calculations": [], "review_items": [], "warnings": []
+  },
+  {
+    "api_version": "1.0.0", "run_id": "run_financial_demo", "task_type": "financial_analysis", "status": "succeeded", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_annual_demo", "doc_prior_demo"],
+    "data": {"facts": [{"fact_id": "fact_revenue_demo", "company_code": "999999", "metric": "revenue", "value": "100000000", "unit": "CNY", "period_start": "2025-01-01", "period_end": "2025-12-31", "period_type": "cumulative", "statement_scope": "consolidated", "restated": false, "evidence_ids": ["ev_annual_01"], "review_status": "verified", "reason": null}], "alerts": []},
+    "evidence_ids": ["ev_annual_01"], "calculations": [], "review_items": [], "warnings": []
+  },
+  {
+    "api_version": "1.0.0", "run_id": "run_industry_demo", "task_type": "industry_impact", "status": "needs_review", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_industry_demo"],
+    "data": {"nodes": [{"node_id": "raw", "name": "示例原料", "stage": "upstream"}, {"node_id": "company", "name": "示例企业", "stage": "company"}], "edges": [{"from_id": "raw", "to_id": "company", "mechanism": "原料涨价可能增加成本", "direction": "negative", "evidence_ids": ["ev_industry_01"]}], "scenarios": [{"scenario_id": "base", "assumptions": ["售价不变"], "impact_text": "成本方向上升，幅度待核", "evidence_ids": ["ev_industry_01"]}], "conclusions": [{"text": "利润影响幅度需核对成本占比", "kind": "inference", "evidence_ids": ["ev_industry_01"], "assumptions": ["售价不变"], "limitations": ["缺少成本占比"]}]},
+    "evidence_ids": ["ev_industry_01"], "calculations": [], "review_items": [{"review_id": "review_industry_01", "target_id": "ev_industry_01", "reason": "缺少成本占比", "status": "pending", "evidence_ids": ["ev_industry_01"]}], "warnings": ["示例结果，仅用于接口联调"]
+  },
+  {
+    "api_version": "1.0.0", "run_id": "run_valuation_demo", "task_type": "valuation", "status": "needs_review", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_annual_demo", "doc_market_snapshot_demo"],
+    "data": {"method": "relative_pe", "as_of_date": "2026-09-28", "assumptions": [{"text": "示例倍数取值待验证", "kind": "opinion", "evidence_ids": [], "assumptions": ["示例情景"], "limitations": ["未取得可比公司快照"]}], "valuation_range": {"low": null, "base": null, "high": null, "unit": "CNY", "reason": "缺少可比公司与股价快照"}, "sensitivity": []},
+    "evidence_ids": [], "calculations": [], "review_items": [{"review_id": "review_valuation_01", "target_id": "run_valuation_demo", "reason": "缺少估值输入", "status": "pending", "evidence_ids": []}], "warnings": ["示例结果，仅用于接口联调"]
+  },
+  {
+    "api_version": "1.0.0", "run_id": "run_verify_demo", "task_type": "research_verification", "status": "succeeded", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_draft_demo", "doc_annual_demo"],
+    "data": {"checks": [{"claim_id": "claim_001", "sentence": "示例公司收入为1亿元。", "draft_evidence_id": "ev_draft_01", "decision": "correct", "error_type": "none", "severity": "low", "source_evidence_ids": ["ev_annual_01"], "calculation_id": null, "suggested_edit": null, "reason": "与原始材料一致"}], "summary": {"correct": 1, "incorrect": 0, "needs_review": 0}},
+    "evidence_ids": ["ev_draft_01", "ev_annual_01"], "calculations": [], "review_items": [], "warnings": []
+  },
+  {
+    "api_version": "1.0.0", "run_id": "run_memo_demo", "task_type": "investment_memo", "status": "needs_review", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_annual_demo", "doc_industry_demo"],
+    "data": {"thesis": [{"text": "示例企业收入增长可能改善规模效应", "kind": "inference", "evidence_ids": ["ev_annual_01"], "assumptions": ["费用率不明显上升"], "limitations": ["需核对后续季度"]}], "evidence": [{"text": "示例年度收入为1亿元", "kind": "fact", "evidence_ids": ["ev_annual_01"], "assumptions": [], "limitations": []}], "risks": [{"text": "原料涨价风险", "kind": "inference", "evidence_ids": ["ev_industry_01"], "assumptions": [], "limitations": ["成本占比待核"]}], "disconfirming_conditions": [{"text": "若后续收入未增长，则规模效应假设不成立", "kind": "opinion", "evidence_ids": ["ev_annual_01"], "assumptions": [], "limitations": []}], "monitoring_indicators": ["季度收入", "毛利率"]},
+    "evidence_ids": ["ev_annual_01", "ev_industry_01"], "calculations": [], "review_items": [{"review_id": "review_memo_01", "target_id": "run_memo_demo", "reason": "投资逻辑待人工复核", "status": "pending", "evidence_ids": ["ev_annual_01"]}], "warnings": ["示例结果，仅用于接口联调"]
+  },
+  {
+    "api_version": "1.0.0", "run_id": "run_quality_demo", "task_type": "report_quality", "status": "succeeded", "generated_at": "2026-09-28T10:00:00+08:00", "input_document_ids": ["doc_draft_demo", "doc_draft_b_demo"],
+    "data": {"rubric": [{"dimension": "事实准确性", "weight": 60, "criterion": "关键数字与原始材料一致"}, {"dimension": "证据完整性", "weight": 40, "criterion": "每条关键结论能定位来源"}], "report_scores": [{"document_id": "doc_draft_demo", "score": 90, "deductions": [{"dimension": "证据完整性", "points": 10, "reason": "一处结论缺少页码", "evidence_ids": ["ev_draft_01"]}]}], "review_items": []},
+    "evidence_ids": ["ev_draft_01"], "calculations": [], "review_items": [], "warnings": ["示例分数，仅用于接口联调"]
+  }
+]

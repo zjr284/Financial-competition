@@ -1,0 +1,9 @@
+{
+  "document": {"document_id": "doc_annual_demo", "filename": "虚构公司2025年年报.pdf", "media_type": "application/pdf", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "source_url": null, "disclosure_date": "2026-03-30", "ingested_at": "2026-09-28T09:00:00+08:00", "page_count": 100, "parse_status": "parsed"},
+  "evidence": {"evidence_id": "ev_annual_01", "document_id": "doc_annual_demo", "page": 42, "bbox": [100, 200, 700, 240], "text": "营业收入 100,000,000 元", "extraction_method": "table", "confidence": 0.99, "table_id": "table_annual_01", "row": 3, "column": 2},
+  "run": {"api_version": "1.0.0", "run_id": "run_financial_demo", "task_type": "financial_analysis", "status": "succeeded", "document_ids": ["doc_annual_demo", "doc_prior_demo"], "created_at": "2026-09-28T09:59:00+08:00", "started_at": "2026-09-28T09:59:01+08:00", "finished_at": "2026-09-28T10:00:00+08:00", "model_id": "Qwen3-8B", "model_revision": "demo-revision", "prompt_version": "prompt-v1", "code_version": "demo-commit", "input_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "result_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "error": null},
+  "event_page": {"events": [{"event_id": "event_001", "run_id": "run_financial_demo", "timestamp": "2026-09-28T09:59:02+08:00", "event_type": "file_access", "tool_name": "parse_document", "input_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "output_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "message": "读取示例文档"}], "next_cursor": null},
+  "review_decision": {"decision": "correct", "reviewer": "member_b", "note": "已根据原文核对", "corrected_value": "100000000"},
+  "review_item": {"review_id": "review_001", "target_id": "fact_revenue_demo", "reason": "原始表格扫描质量较低", "status": "corrected", "evidence_ids": ["ev_annual_01"]},
+  "health": {"status": "ok", "api_version": "1.0.0", "model_available": true}
+}

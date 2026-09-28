@@ -1,0 +1,268 @@
+openapi: 3.1.0
+info:
+  title: 金融投研智能体 API
+  version: 1.0.0
+  description: 七项竞赛任务共用的本地 HTTP 契约；数据结构引用同目录 JSON Schema。
+servers:
+  - url: http://127.0.0.1:8000/api/v1
+    description: 本地评审与开发环境
+tags:
+  - name: system
+  - name: documents
+  - name: runs
+  - name: evidence
+  - name: reviews
+paths:
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: 查询服务和模型状态
+      responses:
+        '200':
+          description: 服务可用或降级
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/Health'}
+  /documents:
+    post:
+      tags: [documents]
+      operationId: uploadDocument
+      summary: 上传并登记文件
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                source_url:
+                  type: string
+                  format: uri
+                disclosure_date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: 已登记文件；相同内容再次上传返回相同 document_id
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/Document'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {$ref: '#/components/responses/Unsupported'}
+  /documents/{document_id}:
+    get:
+      tags: [documents]
+      operationId: getDocument
+      summary: 查询文件元数据
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: 文件元数据
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/Document'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /documents/{document_id}/content:
+    get:
+      tags: [documents]
+      operationId: getDocumentContent
+      summary: 读取原始文件，供证据页面框选定位
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: 原始文件字节流；实际 Content-Type 使用 Document.media_type
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            ETag:
+              description: 原始文件 SHA-256
+              schema: {type: string, pattern: '^[a-f0-9]{64}$'}
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+            text/plain:
+              schema: {type: string, format: binary}
+            text/csv:
+              schema: {type: string, format: binary}
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /runs:
+    post:
+      tags: [runs]
+      operationId: createRun
+      summary: 启动一项任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: './contracts.schema.json#/$defs/RunRequest'}
+      responses:
+        '202':
+          description: 任务已进入队列
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/Run'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /runs/{run_id}:
+    get:
+      tags: [runs]
+      operationId: getRun
+      summary: 查询任务状态
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: 任务元数据和进度
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/Run'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /runs/{run_id}/result:
+    get:
+      tags: [runs]
+      operationId: getRunResult
+      summary: 查询已完成或待复核的结构化结果
+      description: 状态为 succeeded 或 needs_review 时返回 TaskResult；queued/running/failed 时返回 409。
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: 七题之一的结构化结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/TaskResult'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /runs/{run_id}/events:
+    get:
+      tags: [runs]
+      operationId: listRunEvents
+      summary: 分页查询任务状态和工具事件
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: 事件分页
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/EventPage'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /evidence/{evidence_id}:
+    get:
+      tags: [evidence]
+      operationId: getEvidence
+      summary: 查询证据原文位置和短片段
+      parameters:
+        - $ref: '#/components/parameters/EvidenceId'
+      responses:
+        '200':
+          description: 证据
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/Evidence'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /reviews/{review_id}/decision:
+    post:
+      tags: [reviews]
+      operationId: decideReview
+      summary: 提交人工复核决定
+      parameters:
+        - $ref: '#/components/parameters/ReviewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: './contracts.schema.json#/$defs/ReviewDecision'}
+      responses:
+        '200':
+          description: 更新后的复核项
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema: {$ref: './contracts.schema.json#/$defs/ReviewItem'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+components:
+  headers:
+    RequestId:
+      description: 本次 HTTP 请求的排查 ID
+      schema: {type: string}
+  parameters:
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^doc_[A-Za-z0-9_-]+$'}
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^run_[A-Za-z0-9_-]+$'}
+    EvidenceId:
+      name: evidence_id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^ev_[A-Za-z0-9_-]+$'}
+    ReviewId:
+      name: review_id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^review_[A-Za-z0-9_-]+$'}
+  responses:
+    BadRequest:
+      description: 请求无效
+      content:
+        application/json:
+          schema: {$ref: './contracts.schema.json#/$defs/Error'}
+    NotFound:
+      description: ID 不存在
+      content:
+        application/json:
+          schema: {$ref: './contracts.schema.json#/$defs/Error'}
+    Conflict:
+      description: 任务状态不允许本次操作
+      content:
+        application/json:
+          schema: {$ref: './contracts.schema.json#/$defs/Error'}
+    TooLarge:
+      description: 文件超过部署限制
+      content:
+        application/json:
+          schema: {$ref: './contracts.schema.json#/$defs/Error'}
+    Unsupported:
+      description: 文件类型不受支持
+      content:
+        application/json:
+          schema: {$ref: './contracts.schema.json#/$defs/Error'}

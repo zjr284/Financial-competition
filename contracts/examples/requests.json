@@ -1,0 +1,44 @@
+[
+  {
+    "api_version": "1.0.0",
+    "task_type": "structured_extraction",
+    "document_ids": ["doc_announcement_demo"],
+    "task_input": {"announcement_types": ["pledge", "bid_award", "equity_change"]}
+  },
+  {
+    "api_version": "1.0.0",
+    "task_type": "financial_analysis",
+    "document_ids": ["doc_annual_demo", "doc_prior_demo"],
+    "task_input": {"company_code": "999999", "periods": ["2025-12-31", "2024-12-31"], "statement_scope": "consolidated"}
+  },
+  {
+    "api_version": "1.0.0",
+    "task_type": "industry_impact",
+    "document_ids": ["doc_industry_demo"],
+    "task_input": {"focus_company_code": "999999", "event_description": "示例原料价格上涨", "scenario_ids": ["base", "stress"]}
+  },
+  {
+    "api_version": "1.0.0",
+    "task_type": "valuation",
+    "document_ids": ["doc_annual_demo", "doc_market_snapshot_demo"],
+    "task_input": {"company_code": "999999", "method": "relative_pe", "as_of_date": "2026-09-28", "statement_scope": "consolidated", "assumption_overrides": {}}
+  },
+  {
+    "api_version": "1.0.0",
+    "task_type": "research_verification",
+    "document_ids": ["doc_draft_demo", "doc_annual_demo"],
+    "task_input": {"draft_document_id": "doc_draft_demo", "company_code": "999999"}
+  },
+  {
+    "api_version": "1.0.0",
+    "task_type": "investment_memo",
+    "document_ids": ["doc_annual_demo", "doc_industry_demo"],
+    "task_input": {"company_code": "999999", "as_of_date": "2026-09-28"}
+  },
+  {
+    "api_version": "1.0.0",
+    "task_type": "report_quality",
+    "document_ids": ["doc_draft_demo", "doc_draft_b_demo"],
+    "task_input": {"report_document_ids": ["doc_draft_demo", "doc_draft_b_demo"]}
+  }
+]
