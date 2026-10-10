@@ -1,0 +1,290 @@
+{
+  "synthetic": true,
+  "label": "接口演示样例：非竞赛实测；坐标为合成页面示意",
+  "documents": [
+    {
+      "document_id": "doc_c_source",
+      "filename": "source.txt",
+      "media_type": "text/plain",
+      "sha256": "83484c7fb29ff2b65a3bf39599518649ba61533c2f8a03489e216fb881da26e4",
+      "source_url": null,
+      "disclosure_date": null,
+      "ingested_at": "2026-10-10T00:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    },
+    {
+      "document_id": "doc_c_draft",
+      "filename": "draft.txt",
+      "media_type": "text/plain",
+      "sha256": "83d44718d89008fbc31830810bedf847f8104cbf3c954d59a20bf2189d352547",
+      "source_url": null,
+      "disclosure_date": null,
+      "ingested_at": "2026-10-10T00:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    },
+    {
+      "document_id": "doc_c_success",
+      "filename": "success.txt",
+      "media_type": "text/plain",
+      "sha256": "158b46f7b60c757a02e0ff388b2514c35cc0dd7e3a402724d1531e23519fd3d5",
+      "source_url": null,
+      "disclosure_date": null,
+      "ingested_at": "2026-10-10T00:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_c_source_0",
+      "document_id": "doc_c_source",
+      "page": 1,
+      "bbox": [
+        50,
+        60,
+        950,
+        120
+      ],
+      "text": "接口演示样例：虚构公司999999，以下数字为测试数据。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_source_1",
+      "document_id": "doc_c_source",
+      "page": 1,
+      "bbox": [
+        50,
+        140,
+        950,
+        200
+      ],
+      "text": "2025年全年合并营业收入为120000000元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_source_2",
+      "document_id": "doc_c_source",
+      "page": 1,
+      "bbox": [
+        50,
+        220,
+        950,
+        280
+      ],
+      "text": "2024年全年合并营业收入为100000000元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_source_3",
+      "document_id": "doc_c_source",
+      "page": 1,
+      "bbox": [
+        50,
+        300,
+        950,
+        360
+      ],
+      "text": "2025年全年合并归母净利润为10000000元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_0",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        60,
+        950,
+        120
+      ],
+      "text": "2025年全年合并营业收入为1.20亿元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_1",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        140,
+        950,
+        200
+      ],
+      "text": "2025年全年合并归母净利润为9000000元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_2",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        220,
+        950,
+        280
+      ],
+      "text": "2025年全年合并营业收入同比增长20.0%。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_3",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        300,
+        950,
+        360
+      ],
+      "text": "2025年全年合并营业收入为120000000万元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_4",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        380,
+        950,
+        440
+      ],
+      "text": "2025年上半年合并营业收入为1.20亿元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_5",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        460,
+        950,
+        520
+      ],
+      "text": "2025年全年母公司营业收入为1.20亿元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_6",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        540,
+        950,
+        600
+      ],
+      "text": "公司未来一定成为行业第一。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_draft_7",
+      "document_id": "doc_c_draft",
+      "page": 1,
+      "bbox": [
+        50,
+        620,
+        950,
+        680
+      ],
+      "text": "风险：订单变化；反证：新增订单持续减少时投资逻辑不成立。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_success_0",
+      "document_id": "doc_c_success",
+      "page": 1,
+      "bbox": [
+        50,
+        60,
+        950,
+        120
+      ],
+      "text": "2025年全年合并营业收入为1.20亿元。",
+      "extraction_method": "manual",
+      "confidence": 1
+    },
+    {
+      "evidence_id": "ev_c_success_1",
+      "document_id": "doc_c_success",
+      "page": 1,
+      "bbox": [
+        50,
+        140,
+        950,
+        200
+      ],
+      "text": "2025年全年合并营业收入同比增长20.0%。",
+      "extraction_method": "manual",
+      "confidence": 1
+    }
+  ],
+  "facts": [
+    {
+      "fact_id": "fact_404e9e3652347ea148b4bb12",
+      "company_code": "999999",
+      "metric": "revenue",
+      "value": "120000000",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_c_source_1"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_5eb651c58aca24df21ba7df5",
+      "company_code": "999999",
+      "metric": "revenue",
+      "value": "100000000",
+      "unit": "CNY",
+      "period_start": "2024-01-01",
+      "period_end": "2024-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_c_source_2"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_ccf6bb653523ac2741ba89b4",
+      "company_code": "999999",
+      "metric": "net_profit_parent",
+      "value": "10000000",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_c_source_3"
+      ],
+      "review_status": "verified",
+      "reason": null
+    }
+  ]
+}

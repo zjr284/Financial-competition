@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>金融投研 · 证据核查台</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <span class="eyebrow">FINANCIAL RESEARCH / MEMBER C</span>
+        <h1>让每条结论回到证据</h1>
+        <p>核查声明、对照原文、保留复核记录。</p>
+      </div>
+      <span id="mode-badge" class="badge">接口演示样例</span>
+    </header>
+    <nav>
+      <button id="sample" class="active">离线样例</button
+      ><button id="live">连接团队 API</button
+      ><span id="connection">合成资料 · 非竞赛实测 · 未接入模型</span>
+    </nav>
+    <main>
+      <section id="connect" hidden class="panel">
+        <h2>任务输入</h2>
+        <label
+          >API 地址
+          <input id="api-base" value="http://127.0.0.1:8000/api/v1" /></label
+        ><button id="health">检查连接</button>
+        <p>跨域部署时由 A 配置 CORS；同源服务直接使用 /api/v1。</p>
+        <label
+          >上传资料（PDF / TXT / CSV / XLSX）<input
+            type="file"
+            id="upload"
+            accept=".pdf,.txt,.csv,.xlsx" /></label
+        ><button id="upload-button">登记文件</button>
+        <label
+          >固定输入 document_ids（每行一个）<textarea
+            id="document-ids"
+            rows="3"
+          ></textarea>
+        </label>
+        <label>任务<select id="task-type"></select></label
+        ><label
+          >task_input（依据 v1 契约）<textarea
+            id="task-input"
+            rows="6"
+          ></textarea></label
+        ><button id="run">启动任务</button
+        ><button id="stop" disabled>停止页面轮询</button>
+      </section>
+      <div class="workspace">
+        <section class="results">
+          <div class="section-heading">
+            <h2>核查与结果</h2>
+            <select id="sample-result" aria-label="选择样例">
+              <option value="0">含错误与待复核声明</option>
+              <option value="1">全部数值核验通过</option>
+              <option value="2">报告质量规则评分</option>
+            </select>
+          </div>
+          <p id="status" role="status" aria-live="polite">加载中…</p>
+          <div id="summary" class="summary"></div>
+          <div id="results"></div>
+          <details>
+            <summary>计算轨迹</summary>
+            <pre id="calculations"></pre>
+          </details>
+          <details>
+            <summary>运行事件与版本</summary>
+            <pre id="events"></pre>
+          </details>
+          <details>
+            <summary>结构化结果</summary>
+            <pre id="raw"></pre>
+          </details>
+          <button id="export" disabled>导出结果 JSON</button>
+        </section>
+        <aside class="panel evidence">
+          <div class="section-heading">
+            <h2>证据对照</h2>
+            <span class="tag">页码从 1 开始</span>
+          </div>
+          <p id="evidence-meta">点击原句或来源按钮查看定位。</p>
+          <blockquote id="evidence-text"></blockquote>
+          <a id="source-link" hidden target="_blank" rel="noopener"
+            >打开固定版本原件</a
+          >
+          <div id="page" class="page">
+            <canvas id="pdf-canvas" hidden></canvas>
+            <div id="text-page"></div>
+            <div id="bbox" hidden></div>
+          </div>
+          <p id="location-note"></p>
+          <section id="reviews">
+            <h3>人工复核</h3>
+            <p>复核操作需要连接团队 API。离线样例不会写入真实记录。</p>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <footer>
+      规则基线 c-rules-v1 · 来源、计算与待复核声明分开呈现 ·
+      研究演示，不构成投资建议
+    </footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
