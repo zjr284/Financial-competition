@@ -1,0 +1,82 @@
+# 角色 B 模块交接说明
+
+## 已实现的范围
+
+| 模块 | 入口 | 输入 | 输出 |
+|---|---|---|---|
+| 事实字典与核验 | `app.facts.FactIndex` | `Fact` 列表 | 同公司、口径、期间的规范事实；冲突显式报错 |
+| 确定性计算 | `app.tools.FinancialCalculator` | 已登记事实及公式参数 | 符合公共 Schema 的 `Calculation` |
+| 财报分析 | `FinancialAnalysisTask.run(context, task_input)` | `FinancialInput`、证据和计算端口 | `FinancialData` 加公共证据、计算、复核项 |
+| 相对 PE / DCF | `ValuationTask.run(context, task_input)` | `ValuationInput`、财务与行情快照 | `ValuationData`、敏感性矩阵、计算轨迹 |
+| 产业链 | `IndustryImpactTask.run(context, task_input)` | `IndustryInput`、归档行业证据、模型端口 | `IndustryData` 候选与人工复核项 |
+| 买方备忘录 | `InvestmentMemoTask.run(context, task_input)` | `MemoInput`、财务和行业证据、模型端口 | `MemoData` 候选与人工复核项 |
+
+以上任务插件均返回 `{data, evidence_ids, calculations, review_items, warnings}`，由 A 的编排器按照 `contracts/contracts.schema.json#/$defs/TaskResult` 加上公共包裹层。若 `review_items` 非空，编排器应把任务状态设为 `needs_review`。任务插件没有实现 PDF/OCR、文件存储、Web、真实模型部署或 HTTP 路由，这些接口由 A/C 负责。
+
+A 可调用 `app.tasks.role_b.get_role_b_tasks()` 一次性取得四个 `task_type → TaskPlugin` 映射并注册到编排器。
+
+## A 侧接入方式
+
+```python
+from contracts.ports import TaskContext
+from app.tools import FinancialCalculator
+from app.tasks.financial_analysis import FinancialAnalysisTask
+
+context = TaskContext(
+    run_id="run_...",
+    document_ids=("doc_...",),
+    documents=document_port,
+    evidence=evidence_port,
+    calculations=FinancialCalculator(),
+    model=model_port,
+    events=event_port,
+)
+payload = FinancialAnalysisTask().run(context, {
+    "company_code": "999999",
+    "periods": ["2025-12-31", "2024-12-31"],
+    "statement_scope": "consolidated",
+})
+```
+
+`evidence_port.extract_facts(document_ids, field_codes)` 必须返回公共 `Fact` 对象；它们的 `evidence_ids` 必须能被 `get_evidence` 查到，且 `Evidence.document_id` 属于此次运行的 `document_ids`。计算器在任务运行时自动登记提取到的事实。`events.append_event` 应持久化计算事件；日志只记录 ID、摘要与哈希。`model.infer_json` 用于产业链与备忘录，须按照 `IndustryData` / `MemoData` 约束返回 JSON，并记录模型与 Prompt 版本。
+
+请勿将 `contracts/examples/` 的虚构公司数据作为实测成果；目前测试只证明接口与关键算术路径，不证明真实公告解析准确率。
+
+## 财务计算与适用条件
+
+| `formula_code` | 输入顺序 | 输出 | 主要拒绝条件 |
+|---|---|---|---|
+| `yoy` | 当期、上年同期同指标事实 | `percent` | 期间／口径不匹配、基期为零 |
+| `quarter_from_ytd` | 本期累计、上一季度累计 | `CNY` | 非流量、非相邻季度、不同年或不同口径 |
+| `gross_margin` | 营业收入、营业成本 | `percent` | 不同期间／口径、收入为零 |
+| `cash_conversion` | 经营现金流、归母净利润 | `times` | 不同期间／口径、利润为零 |
+| `nonrecurring_gap_share` | 归母、扣非归母净利润 | `percent` | 不同期间／口径、归母利润为零 |
+| `pe` | 同日总市值、同公司近期 TTM 归母利润 | `times` | 日期不符、利润或市值非正 |
+| `relative_equity_value` | 目标公司 TTM 归母利润 | `CNY` | 缺少或无效的可比 PE 倍数 |
+| `forecast_fcf` 等 DCF 公式 | 详见代码中的参数名 | `CNY` | 缺少假设、假设范围错误、WACC 不高于终值增长率 |
+
+输出金额均为**人民币元**；相对估值和 DCF 输出的是**股权总价值**，不是每股价格。百分数以 `"12.5"` 表示 12.5%。`nonrecurring_gap_share` 只是归母与扣非归母差额的筛查指标，不能直接代替公司披露的非经常性损益明细。
+
+相对 PE 使用资料包内三家及以上可比公司的同日市值与近期 TTM 利润，取最小／中位／最大 PE，附 ±10% 目标盈利敏感性；可比性必须由分析员复核。DCF 需要显式输入 `revenue_growth, operating_margin, tax_rate, da_pct, capex_pct, nwc_pct, wacc, terminal_growth, net_debt`，可选 `forecast_years`，默认 5 年。所有利率和增长率都采用百分数值，例如 `"10"` 表示 10%。`nwc_pct` 指**每年新增营运资本投入占当年收入的百分比**；此简化假设必须在最终报告中解释。DCF 使用 WACC ±1 个百分点、终值增长率 ±0.5 个百分点生成九格敏感性。
+
+## 成功与待复核样例
+
+运行：
+
+```bash
+python3 -m unittest discover -s tests -p 'test_finance_modules.py' -v
+python3 contracts/validate_contracts.py
+```
+
+`test_financial_analysis_recomputes_yoy_and_flags_profit_cash_divergence` 是成功样例：收入 1.2 亿与上年 1 亿重算同比 20%，同时对“利润为正、经营现金流为负”生成有证据的提示。`test_relative_pe_uses_three_peers_and_sensitivity` 与 `test_dcf_explicit_assumptions_generate_nine_scenarios` 展示两种估值及敏感性。`test_zero_base_and_scope_mismatch_require_review`、`test_dcf_missing_assumptions_returns_no_invented_value` 展示关键失败／待复核路径。
+
+`test_industry_and_memo_return_grounded_reviewable_data` 展示模型产出的候选结构，以及系统强制保留人工复核项；`test_synthesis_without_evidence_stops_before_model_call` 展示缺少归档来源时不调用模型、不编造分析。
+
+测试证据定位输出样例：`ev_rev25 → doc_annual_demo，第 42 页，bbox=[100,200,700,240]`。这是**模拟定位**，只用于验证 A/C 的跳转接口；真实页码与框选必须由 A 的解析模块从正式披露文件生成，再由 B 抽查。
+
+## 待接入与金融复核
+
+1. A 接入真实 PDF/OCR、文档哈希、证据坐标、模型服务和运行状态；C 将结构化结果与原文页同屏展示。
+2. B 与 C 共同选定真实上市公司样本，由 B 逐项核对归母／扣非、合并／母公司、累计／单季及更正公告。当前代码尚未用真实年报做准确率评测。
+3. 产业链和备忘录模块会调用模型，但对因果与投资判断始终保留人工复核项。提交前必须检查模型输出是否与原文一致、资料是否仍在适用期。
+4. 如确需修改公共字段，在 `docs/接口问题记录.md` 提议，由三人确认后同步修改 Schema、OpenAPI 和示例。
