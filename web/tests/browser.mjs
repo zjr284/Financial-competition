@@ -39,6 +39,39 @@ function pdfFixture() {
   return Buffer.from(source);
 }
 try {
+  // 样例加载未结束就切换模式：迟到的成功/失败响应都不得污染真实模式。
+  for (const responseStatus of [200, 503]) {
+    const racePage = await browser.newPage();
+    await localSite(racePage.context());
+    let release, arrived;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const requested = new Promise((resolve) => {
+      arrived = resolve;
+    });
+    await racePage.route("**/demo.json", async (route) => {
+      arrived();
+      await gate;
+      await route.fulfill({ status: responseStatus, json: demo });
+    });
+    await racePage.goto(base);
+    await requested;
+    await racePage.getByRole("button", { name: "连接团队 API" }).click();
+    release();
+    await racePage.waitForLoadState("networkidle");
+    assert.equal(await racePage.locator(".card").count(), 0);
+    assert.equal(await racePage.locator("#export").isDisabled(), true);
+    assert.match(
+      await racePage.locator("#status").textContent(),
+      /填写 API 地址/,
+    );
+    assert.match(
+      await racePage.locator("#mode-badge").textContent(),
+      /团队 API/,
+    );
+    await racePage.close();
+  }
   await page.goto(base);
   await page.getByText("接口演示样例", { exact: true }).waitFor();
   await page.locator(".card").first().waitFor();
@@ -122,13 +155,11 @@ try {
   await page.locator("#api-base").fill(base + "/api/v1");
   await page.locator("#health").click();
   await page.getByText("团队 API 已连接", { exact: true }).waitFor();
-  await page
-    .locator("#upload")
-    .setInputFiles({
-      name: "test.pdf",
-      mimeType: "application/pdf",
-      buffer: pdf,
-    });
+  await page.locator("#upload").setInputFiles({
+    name: "test.pdf",
+    mimeType: "application/pdf",
+    buffer: pdf,
+  });
   await page.locator("#upload-button").click();
   await page.locator("#status").filter({ hasText: "文件已登记" }).waitFor();
   assert.match(
@@ -136,14 +167,12 @@ try {
     /doc_pdf_test/,
   );
   await page.locator("#document-ids").fill("doc_c_source\ndoc_c_draft");
-  await page
-    .locator("#task-input")
-    .fill(
-      JSON.stringify({
-        draft_document_id: "doc_c_draft",
-        company_code: "999999",
-      }),
-    );
+  await page.locator("#task-input").fill(
+    JSON.stringify({
+      draft_document_id: "doc_c_draft",
+      company_code: "999999",
+    }),
+  );
   await page.locator("#run").click();
   await page.locator("#status").filter({ hasText: "待复核" }).waitFor();
   assert.equal(createRequest.api_version, "1.0.0");

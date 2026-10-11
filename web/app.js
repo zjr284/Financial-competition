@@ -368,6 +368,7 @@ function drawBox(bbox) {
 }
 async function loadSample() {
   reset();
+  const epoch = state.epoch;
   state.mode = "sample";
   $("connect").hidden = true;
   $("sample-result").hidden = false;
@@ -375,7 +376,17 @@ async function loadSample() {
   $("live").classList.remove("active");
   $("mode-badge").textContent = "接口演示样例";
   $("connection").textContent = "合成资料 · 非竞赛实测 · 未接入模型";
-  state.data = await (await fetch("demo.json")).json();
+  let data;
+  try {
+    const response = await fetch("demo.json");
+    if (!response.ok) throw new Error(`样例读取失败：HTTP ${response.status}`);
+    data = await response.json();
+  } catch (error) {
+    if (epoch !== state.epoch || state.mode !== "sample") return;
+    throw error;
+  }
+  if (epoch !== state.epoch || state.mode !== "sample") return;
+  state.data = data;
   render(state.data.results[Number($("sample-result").value)]);
   $("events").textContent = JSON.stringify(
     { manifest: state.data.manifest, events: state.data.events },
