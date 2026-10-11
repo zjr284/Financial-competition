@@ -1,0 +1,16 @@
+{
+  "name": "financial-competition-c-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/browser.mjs",
+    "record": "node tests/record.mjs"
+  },
+  "dependencies": {
+    "pdfjs-dist": "5.4.624"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "prettier": "3.6.2"
+  }
+}
