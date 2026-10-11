@@ -8,6 +8,8 @@ const state = {
   epoch: 0,
   evidenceEpoch: 0,
   urls: [],
+  eventRun: null,
+  eventPage: null,
 };
 const names = {
   structured_extraction: "公告结构化提取",
@@ -77,6 +79,10 @@ function reset() {
   state.urls.forEach(URL.revokeObjectURL);
   state.urls = [];
   state.result = null;
+  state.eventRun = null;
+  state.eventPage = null;
+  $("more-events").hidden = true;
+  $("more-events").disabled = false;
   $("export").disabled = true;
   for (const id of [
     "results",
@@ -109,6 +115,53 @@ async function request(path, options = {}) {
 async function jsonRequest(path, options = {}) {
   return (await request(path, options)).json();
 }
+function renderEvents() {
+  $("events").textContent = JSON.stringify(
+    { run: state.eventRun, event_page: state.eventPage },
+    null,
+    2,
+  );
+  $("more-events").hidden = state.eventPage.next_cursor === null;
+}
+async function loadEvents(run, epoch) {
+  const events = await jsonRequest(
+    `/runs/${encodeURIComponent(run.run_id)}/events?limit=50`,
+  );
+  if (epoch !== state.epoch) return;
+  state.eventRun = run;
+  state.eventPage = events;
+  renderEvents();
+}
+$("more-events").onclick = async () => {
+  const epoch = state.epoch;
+  const run = state.eventRun;
+  const cursor = state.eventPage?.next_cursor;
+  if (!run || cursor == null) return;
+  $("more-events").disabled = true;
+  try {
+    const next = await jsonRequest(
+      `/runs/${encodeURIComponent(run.run_id)}/events?limit=50&cursor=${encodeURIComponent(cursor)}`,
+    );
+    if (epoch !== state.epoch) return;
+    if (next.next_cursor === cursor)
+      throw new Error("事件分页游标未前进，请检查后端");
+    const known = new Set(
+      state.eventPage.events.map((event) => event.event_id),
+    );
+    state.eventPage = {
+      events: [
+        ...state.eventPage.events,
+        ...next.events.filter((event) => !known.has(event.event_id)),
+      ],
+      next_cursor: next.next_cursor,
+    };
+    renderEvents();
+  } catch (error) {
+    if (epoch === state.epoch) reportError(error);
+  } finally {
+    if (epoch === state.epoch) $("more-events").disabled = false;
+  }
+};
 function evidenceButton(eid, label) {
   const b = node("button", label);
   b.onclick = () => showEvidence(eid).catch(reportError);
@@ -204,14 +257,19 @@ function renderReviews(reviews) {
       const value = node("input");
       value.placeholder = "修正值（仅 correct 必填）";
       value.setAttribute("aria-label", "修正值");
+      const canCorrect = state.result.task_type === "structured_extraction";
+      value.hidden = !canCorrect;
       const decision = node("select");
-      for (const d of ["accept", "reject", "correct"]) {
+      for (const d of canCorrect
+        ? ["accept", "reject", "correct"]
+        : ["accept", "reject"]) {
         const option = node("option", d);
         option.value = d;
         decision.append(option);
       }
       const submit = node("button", "提交人工决定");
       submit.onclick = async () => {
+        const epoch = state.epoch;
         try {
           if (!reviewer.value.trim() || !note.value.trim())
             throw new Error("请填写复核人与依据");
@@ -232,16 +290,24 @@ function renderReviews(reviews) {
               }),
             },
           );
+          if (epoch !== state.epoch) return;
           r.status = updated.status;
           renderReviews(state.result.review_items);
           status("人工决定已保存；结果是否重跑由后端状态机决定");
         } catch (e) {
-          reportError(e);
+          if (epoch === state.epoch) reportError(e);
         } finally {
           submit.disabled = false;
         }
       };
       card.append(reviewer, note, decision, value, submit);
+      if (!canCorrect)
+        card.append(
+          node(
+            "small",
+            "此任务记录复核决定；修改草稿或事实后启动新任务，当前结果保持原运行版本。",
+          ),
+        );
     } else {
       card.append(
         node(
@@ -455,7 +521,7 @@ $("upload-button").onclick = async () => {
 $("run").onclick = async () => {
   try {
     setBase();
-    clearTimeout(state.poll);
+    reset();
     const epoch = ++state.epoch;
     const ids = [
       ...new Set($("document-ids").value.split(/\s+/).filter(Boolean)),
@@ -492,18 +558,13 @@ $("run").onclick = async () => {
           );
           if (epoch !== state.epoch) return;
           render(result);
-          const events = await jsonRequest(
-            `/runs/${encodeURIComponent(run.run_id)}/events`,
-          );
+          await loadEvents(current, epoch);
           if (epoch !== state.epoch) return;
-          $("events").textContent = JSON.stringify(
-            { run: current, event_page: events },
-            null,
-            2,
-          );
           $("stop").disabled = true;
           $("run").disabled = false;
         } else if (["failed", "cancelled"].includes(current.status)) {
+          await loadEvents(current, epoch);
+          if (epoch !== state.epoch) return;
           throw new Error(current.error?.message || labels[current.status]);
         } else if (Date.now() - started > 300000) {
           throw new Error("轮询已超过5分钟，请检查后端运行记录");

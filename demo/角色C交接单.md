@@ -1,6 +1,6 @@
 # 角色 C 交接单
 
-本次交付研报核查与质量评分的可运行规则基线、评测工具、七题 API 前端、合成资料包与可重录的 C 模块演示。公共契约保持 v1.0.0，未实现/替代 A 的 API、文档解析或 B 的生产财务计算。
+本次交付研报核查与质量评分规则基线、评测与双人标注工具、七题 API 前端、A/B/C 运行装配和实际 HTTP 联调演示。公共契约保持 v1.0.0；复用 A 的 API/解析与 B 的 ReviewedFactPort/FinancialCalculator。
 
 ## 一键运行与验证
 
@@ -83,8 +83,50 @@ python -m eval.run_eval --gold PATH_TO_GOLD --predictions PATH_TO_PREDICTIONS --
 - 这是无需模型的保守规则基线。支持明确的单指标/数值/公司期间口径句和同比；预测、条件句、复合句、引用真实性、估值倍数与产业逻辑均 needs_review，不自动判错。尚未接入国产模型候选抽取，不声称满足全队“大模型核心”验收。
 - 原始来源真实性和 Fact 的 verified 标记依赖 A/B；C 验证关联及口径，不代替人工金融复核。
 - QualityInput 缺公司代码，只在原始事实唯一公司时核验。多公司报告先复核。评分不是投研投资建议或主观质量终审。
-- A/B 当前仓库未有服务。前端真实模式的上传、轮询及复核已通过浏览器路由测试，尚未与生产 API 联调；EventPage 当前展示第一页，并保留 next_cursor 原值。
-- 真实双人标注、留出集实测、全系统视频与最终提交，需要团队实际资料、A/B 服务与人工复核。本次已交付工具及可录制的 C 模块部分，未代签这些结论。
+- A/B/C 实际服务已联调：C 两题、原件哈希/PDF 框选、上传、复核保存均走实际 HTTP；运行事件支持游标分页与失败日志。默认 A build_app 不自动注册 B/C，须使用下面的装配入口。
+- 真实双人标注、金融签字、真实留出集实测、全队参赛成片与最终提交仍需实际资料和队员参与。本次实际 HTTP 演示使用合成 PDF/事实，不代签真人结论。
 - 两项公共接口适配疑问已记入 `docs/接口问题记录.md`，没有私改冻结字段。
 
-建议团队后续按“原始资料登记 → B 确认事实/计算 → C 双人标注 → A 接入插件 → 七题联调 → 留出集冻结 → 全队录屏”顺序验收。
+建议团队后续按“原始资料登记 → B 确认事实/计算 → C 双人标注与裁决 → 七题模型联调 → 留出集冻结 → 全队成片”顺序验收。
+
+
+## 2026-10-12：实际 A/B/C 装配与验收
+
+```powershell
+# 默认不注入合成资料。事实由 B/真人复核清单提供，格式见 app/tasks/ROLE_B_HANDOFF.md。
+python -m demo.live --data-dir var/c-live --facts PATH_TO_PRIVATE_REVIEWED_FACTS
+# 独立的新数据目录，显式注入虚构公司 PDF/事实；不能覆盖现有事实清单。
+python -m demo.live --synthetic --data-dir var/c-synthetic-20261012
+```
+
+页面选择“连接团队 API”。命令输出 source/draft/success 的实际 document_id；固定输入填 source + draft，task_input 填 `{"draft_document_id":"实际draft ID","company_code":"999999"}`。成功样例用 source + success；质量评分用 source + draft 及 `{"report_document_ids":["实际draft ID"]}`。API/Web 默认端口为 8000/8765，可通过 --api-port / --web-port 修改。只绑定 127.0.0.1；Ctrl+C 停止服务。
+
+合成 PDF 嵌入本机中文 TTF，不提交字体文件。Windows 默认找黑体/楷体，其他系统设置 C_DEMO_FONT 指向本机可使用的中文 TTF。准确 PDF 文本框定位需 A 的 pdfminer 后端；缺字体/无法唯一解析会明确失败，不抬高 TXT 的 0.7 置信度。实际资料不要使用 --synthetic。
+
+C 集成入口：`from app.tasks.research_verification.runtime import install_role_c; install_role_c(app, manifest_path)`。它只注册 research_verification/report_quality；A 的默认装配与 B 模块保持不变。启动器同时显式调用 B 的 install_role_b。产业链与备忘录仍受 A 当前离线模型能力限制，不宣称七题全部已具备大模型能力。
+
+每个 C Run 首次执行固定 `runs/<run_id>/c-reviewed-facts.json`，日志记录快照哈希。更新总清单只影响新 Run；重放继续使用原快照，每次新建 B 计算器避免跨运行 Fact 污染。没有复核事实时输出 needs_review；文档哈希或证据来源不匹配则结构化失败。复核 accept/reject 只保存决定，不修改原任务结果；C 草稿/事实修订后重新运行，页面不提供后端尚未支持的 correct 数值回写。
+
+```powershell
+python -m unittest eval.test_c_modules eval.test_c_runtime eval.test_annotations -v
+python -m pytest tests eval/test_c_modules.py eval/test_c_runtime.py eval/test_annotations.py -q
+npm --prefix web test
+npm --prefix web run test:live
+npm --prefix web run record:live
+ffmpeg -y -i demo/output/c-live.webm -c:v libx264 -crf 22 -pix_fmt yuv420p -an -movflags +faststart demo/output/C实际联调演示.mp4
+```
+
+`test:live` / `record:live` 启动真实服务，不拦截 API 请求；自动生成独立临时数据目录，结束后关闭服务并清理。验证实际上传去重、状态轮询、两类核查结果、B 同比重算、质量评分、PDF 哈希/框选、复核保存。录制固定显示“合成/非实测/未接大模型”，产物为 C 约一分钟部分，不能代替全队初赛成片。`demo/output/c-live-results.json` 保存录制 Git 提交和实际 TaskResult；先 commit 后重录，确保版本一致。
+
+## 双人标注工具
+
+从前端导出 research_verification TaskResult 后，生成一份空白模板，各复制给两名队员独立填写（不要共享已填写的版本）：
+
+```powershell
+python -m eval.annotations template --result PATH_TO_RESULT --dataset REAL_DATASET_ID --company 真实六位代码 --split holdout --output eval/output/blank.json
+# 合成样例必须额外加 --synthetic。
+python -m eval.annotations combine --first eval/output/member-one.json --second eval/output/member-two.json --adjudications eval/output/adjudications.json --output eval/output/gold.json
+python -m eval.run_eval --gold eval/output/gold.json --predictions PATH_TO_PREDICTIONS --split holdout --output eval/output/metrics.json
+```
+
+每条 annotation 填 annotator/decision/error_type/reason。模板不预填系统判定与建议，固定原句、来源引用和导出结果哈希。裁决文件是 `{claim_id: {adjudicator,decision,error_type,reason}}`；无分歧时可省略。空身份/依据、同一人、资料版本不一致、多余/重复声明、原句改动、缺第三人裁决都拒绝导出。输出文件用独占创建，避免覆盖人工工作。合成标志与标注/裁决哈希保留至金标；脚本无法证明填写者是真人或独立完成，仍需队长确认。
