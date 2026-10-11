@@ -1,0 +1,33 @@
+# 成员 A 模块依赖锁定（精确版本）
+#
+# 用途：记录本模块开发与验证时实际使用的版本，便于评审复现同一运行结果
+#       （`实施路线与验收清单.md` 第 2 节要求 requirements.lock）。
+# 安装：
+#   必需依赖（契约校验与 HTTP JSON 处理）：
+#     python -m pip install -r contracts/requirements.txt
+#   可选依赖（PDF 文本层定位、XLSX 读取加速）：
+#     python -m pip install --target vendor/python "pypdf==6.20.0" "pdfminer.six==20260107"
+#   缺失可选依赖时 app/bootstrap.py 会自动跳过，PDF 解析退回纯标准库后端。
+#
+# 记录环境：Windows + Python 3.11.4
+
+# ---- 必需 ----
+jsonschema==4.17.3
+PyYAML==6.0
+
+# ---- 测试 ----
+pytest==7.4.0
+
+# ---- 可选：PDF 定位（首选 pdfminer.six，逐字符 bbox） ----
+pdfminer.six==20260107
+# pypdf 作为第二后端（文本兜底与页数统计）
+pypdf==6.20.0
+
+# ---- 可选：表格读取加速（缺失时使用内置 XLSX 解析器） ----
+openpyxl==3.0.10
+
+# ---- 可选依赖的传递依赖（由 pip 装入 vendor/python） ----
+cffi==2.1.1
+charset-normalizer==3.5.2
+cryptography==50.0.2
+pycparser==3.11
