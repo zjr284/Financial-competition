@@ -71,11 +71,16 @@ def source_ids_for_facts(context: TaskContext, facts: Iterable[dict[str, Any]]) 
 
 
 def source_ids_for_statements(
-    context: TaskContext, statements: Iterable[dict[str, Any]]
+    context: TaskContext, statements: Iterable[dict[str, Any]], allowed_ids: Iterable[str] | None = None
 ) -> list[str]:
     ids: list[str] = []
+    allowed = set(allowed_ids) if allowed_ids is not None else None
     for statement in statements:
+        if statement.get("kind") == "calculation":
+            raise ValueError("Model calculation claims require deterministic tool recomputation; no calculation output is supported by this synthesis task")
         for evidence_id in statement.get("evidence_ids", []):
+            if allowed is not None and evidence_id not in allowed:
+                raise ValueError(f"Model cites evidence not supplied for this task: {evidence_id}")
             evidence = context.evidence.get_evidence(evidence_id)
             if evidence["document_id"] not in context.document_ids:
                 raise ValueError(

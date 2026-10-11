@@ -98,7 +98,7 @@ class ValuationTask:
             and _ttm(fact)
         ]
         by_company: dict[str, dict[str, Any]] = {}
-        for company in {fact["company_code"] for fact in relevant}:
+        for company in sorted({fact["company_code"] for fact in relevant}):
             latest_period = max(
                 fact["period_end"] for fact in relevant if fact["company_code"] == company
             )
@@ -327,7 +327,7 @@ class ValuationTask:
                 "method": "dcf", "as_of_date": task_input["as_of_date"],
                 "assumptions": [
                     {
-                        "text": f"基期营业收入来自截至 {base_revenue['period_end']} 的全年合并报表。",
+                        "text": f"基期营业收入来自截至 {base_revenue['period_end']} 的全年{'合并' if base_revenue['statement_scope'] == 'consolidated' else '母公司'}报表。",
                         "kind": "fact", "evidence_ids": evidence_ids,
                         "assumptions": [], "limitations": [],
                     },

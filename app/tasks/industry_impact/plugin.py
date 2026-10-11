@@ -60,7 +60,7 @@ class IndustryImpactTask:
             if scenario_id not in found_scenarios:
                 reviews.append(review_item(context.run_id, f"Missing scenario {scenario_id}"))
         statements = data["conclusions"] + data["edges"] + data["scenarios"]
-        cited_ids = source_ids_for_statements(context, statements)
+        cited_ids = source_ids_for_statements(context, statements, known_ids)
         for conclusion in data["conclusions"]:
             if conclusion["kind"] in {"fact", "calculation"} and not conclusion["evidence_ids"]:
                 reviews.append(review_item(context.run_id, "Industry conclusion claims fact without evidence"))

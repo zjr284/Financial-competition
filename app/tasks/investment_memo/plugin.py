@@ -25,7 +25,18 @@ class InvestmentMemoTask:
             item for item in source_items
             if item.get("company_code") in {task_input["company_code"], None}
             and item.get("review_status") in {None, "verified"}
+            and item.get("period_end", task_input["as_of_date"]) <= task_input["as_of_date"]
         ]
+        # 已归档不代表截至分析日已披露；丢弃未来披露或无法确认时点的来源。
+        eligible = []
+        for item in source_items:
+            document_ids = {context.evidence.get_evidence(eid)["document_id"] for eid in item.get("evidence_ids", [])}
+            if not document_ids or not hasattr(context.documents, "get_document"):
+                continue
+            dates = [context.documents.get_document(doc_id).get("disclosure_date") for doc_id in document_ids]
+            if all(day is not None and day <= task_input["as_of_date"] for day in dates):
+                eligible.append(item)
+        source_items = eligible
         known_ids = unique(
             evidence_id for item in source_items
             for evidence_id in item.get("evidence_ids", [])
@@ -59,7 +70,7 @@ class InvestmentMemoTask:
             data["thesis"] + data["evidence"] + data["risks"]
             + data["disconfirming_conditions"]
         )
-        evidence_ids = source_ids_for_statements(context, statements)
+        evidence_ids = source_ids_for_statements(context, statements, known_ids)
         reviews: list[dict[str, Any]] = []
         for statement in statements:
             if statement["kind"] in {"fact", "calculation"} and not statement["evidence_ids"]:

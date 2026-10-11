@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import tempfile
 import unittest
 from decimal import Decimal
@@ -111,7 +112,7 @@ def context(items: list[dict], docs: tuple[str, ...], extra_documents: dict[str,
     return TaskContext(
         run_id="run_role_b_test",
         document_ids=docs,
-        documents=object(),
+        documents=SimpleNamespace(get_document=lambda doc_id: {"document_id":doc_id, "disclosure_date":"2026-01-01"}),
         evidence=EvidenceFixture(items, extra_documents),
         calculations=FinancialCalculator(public_fact(item) for item in items if item.get("metric") != "industry_event"),
         model=ModelFixture(),
@@ -354,6 +355,56 @@ class ReviewedFactBridgeTests(unittest.TestCase):
             })
             self.assertEqual(payload["data"]["facts"], [item])
             self.assertTrue(payload["review_items"])  # Other core metrics are genuinely missing.
+
+
+class ReviewRegressionTests(unittest.TestCase):
+    def synthesis_context(self):
+        source = fact("fact_memo_source", "999999", "revenue", "100", "2025-01-01", "2025-12-31")
+        source["evidence_ids"] = ["ev_annual_01"]
+        industry = {"metric":"industry_event", "company_code":"999999", "evidence_ids":["ev_industry_01"], "_document_id":"doc_industry_demo"}
+        return context([source, industry], ("doc_annual_demo", "doc_industry_demo"), {"ev_other":"doc_annual_demo"})
+
+    def test_synthesis_rejects_uncomputed_model_calculations(self):
+        from dataclasses import replace
+        for plugin, task_input, field in [
+            (InvestmentMemoTask(), {"company_code":"999999", "as_of_date":"2026-09-28"}, "thesis"),
+            (IndustryImpactTask(), {"focus_company_code":"999999", "event_description":"test", "scenario_ids":["base"]}, "conclusions"),
+        ]:
+            data = copy.deepcopy(MODEL_EXAMPLES[plugin.task_type])
+            data[field][0]["kind"] = "calculation"
+            ctx = replace(self.synthesis_context(), model=SimpleNamespace(infer_json=lambda *args: data))
+            with self.assertRaisesRegex(ValueError, "recomputation"):
+                plugin.run(ctx, task_input)
+
+    def test_model_cannot_cite_other_evidence_in_same_document(self):
+        from dataclasses import replace
+        data = copy.deepcopy(MODEL_EXAMPLES["industry_impact"])
+        data["conclusions"][0]["evidence_ids"] = ["ev_other"]
+        ctx = replace(self.synthesis_context(), model=SimpleNamespace(infer_json=lambda *args: data))
+        with self.assertRaisesRegex(ValueError, "not supplied"):
+            IndustryImpactTask().run(ctx, {"focus_company_code":"999999", "event_description":"test", "scenario_ids":["base"]})
+
+    def test_memo_excludes_future_periods_and_disclosures(self):
+        from dataclasses import replace
+        for disclosure, end in [("2026-10-01", "2025-12-31"), (None, "2025-12-31"), ("2026-01-01", "2026-12-31")]:
+            item = fact("fact_future", "999999", "revenue", "100", "2025-01-01", end)
+            ctx = context([item], ("doc_annual_demo",))
+            def forbidden_model(*args):
+                self.fail("Future/undated source must not reach model")
+            ctx = replace(ctx, documents=SimpleNamespace(get_document=lambda doc_id:{"disclosure_date":disclosure}),
+                          model=SimpleNamespace(infer_json=forbidden_model))
+            result = InvestmentMemoTask().run(ctx, {"company_code":"999999", "as_of_date":"2026-09-28"})
+            self.assertEqual(result["data"]["thesis"], [])
+            self.assertTrue(result["review_items"])
+
+    def test_peer_calculation_order_is_stable(self):
+        items = [fact("fact_target", "999999", "net_profit_parent_ttm", "100", "2025-07-01", "2026-06-30")]
+        for company in ("888003", "888001", "888002"):
+            items.extend([fact("fact_np_"+company, company, "net_profit_parent_ttm", "100", "2025-07-01", "2026-06-30"),
+                          fact("fact_cap_"+company, company, "market_cap", "1000", "2026-09-28", "2026-09-28", scope="not_applicable", period_type="instant")])
+        result = ValuationTask().run(context(items, ("doc_annual_demo",)), {"company_code":"999999", "method":"relative_pe", "as_of_date":"2026-09-28", "statement_scope":"consolidated"})
+        self.assertEqual([c["input_fact_ids"][0] for c in result["calculations"] if c["formula_code"] == "pe"],
+                         ["fact_cap_888001", "fact_cap_888002", "fact_cap_888003"])
 
 
 if __name__ == "__main__":
