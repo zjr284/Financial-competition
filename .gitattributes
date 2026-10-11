@@ -1,0 +1,29 @@
+# 换行符与二进制处理
+#
+# 为什么需要这个文件：本模块的验收依赖文件内容的 SHA-256（`Document.sha256`、
+# 内容寻址快照、`input_hash`、`result_hash`）。如果 Git 在检出时把样例文件的
+# 换行符从 LF 改成 CRLF，哈希就会与测试和交接单中记录的数值不一致，
+# 评审复现会直接失败。因此这里显式声明各类文件的处理方式。
+
+# 默认：文本文件在仓库内统一 LF，避免跨平台检出差异
+* text=auto eol=lf
+
+# 二进制：绝不转换，保证内容哈希稳定
+*.pdf binary
+*.xlsx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+
+# CSV 属于数据样例，同样按二进制保护（含中文与逗号，行尾必须原样）
+*.csv -text
+
+# 明确为文本且必须 LF 的文件类型
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.lock text eol=lf

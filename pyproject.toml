@@ -1,0 +1,27 @@
+[project]
+name = "financial-investment-agent"
+version = "0.1.0"
+description = "金融投研智能体：成员 A 模块（ingest / parse / evidence / orchestrator / models / logging / api / 结构化提取）"
+requires-python = ">=3.10"
+dependencies = [
+    "jsonschema>=4,<5",
+    "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+# PDF 文本层与坐标解析；缺失时自动退回纯标准库后端
+pdf = ["pypdf>=5", "pdfminer.six>=20231228"]
+# 表格读取加速；缺失时使用内置 XLSX 解析器
+xlsx = ["openpyxl>=3"]
+
+[project.scripts]
+fin-agent = "app.cli:main"
+
+[tool.setuptools]
+packages = ["app", "api"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "vendor/python"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
