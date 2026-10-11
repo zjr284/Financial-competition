@@ -15,6 +15,52 @@
 
 A 可调用 `app.tasks.role_b.get_role_b_tasks()` 一次性取得四个 `task_type → TaskPlugin` 映射并注册到编排器。
 
+## 与 A/C 当前分支的对接（2026-10-11）
+
+A 的 `feature/member-a-base` 已有文档登记、PDF/TXT 解析、证据定位和编排器，但 `_TaskContext` 暂无 `evidence`、`calculations` 两个端口。B 在 `app.tasks.a_bridge` 提供适配器，**只改 B 的目录**。在 A 的应用启动后、创建 Run 前调用：
+
+```python
+from app.container import build_app
+from app.tasks.a_bridge import install_role_b
+
+app = build_app()
+install_role_b(app)  # 默认为 app.settings.data_dir / "reviewed_facts.json"
+# 或 install_role_b(app, "/path/to/private/reviewed_facts.json")
+```
+
+这会注册 `financial_analysis`、`valuation`、`industry_impact`、`investment_memo`。A 的默认 `build_app()` 尚未自动调用它；合并时需 A 在装配层调用，或在启动脚本中显式调用。适配器每次运行新建计算器，并把 A 的 `DocumentService + ParseService` 包装为公共 Document/Evidence 端口。A 目前仅捕获 `AppError`；适配器把输入/来源/模型校验异常转换成结构化失败，避免 Run 停在 `running`。C 的 `research_verification` 也可使用 `ACompatibleTask(ResearchVerificationTask(), manifest_path)` 获得同一组端口，但 C 模块注册及默认装配仍由 A/C 确认。
+
+### 经复核事实清单
+
+`reviewed_facts.json` 放在 A 的私有数据目录，格式如下；每个 Fact 须完整符合 `contracts/contracts.schema.json#/$defs/Fact`：
+
+```json
+{
+  "version": 1,
+  "documents": [
+    {
+      "document_id": "doc_实际登记ID",
+      "sha256": "此文档实际SHA256十六进制值",
+      "facts": [
+        {
+          "fact_id": "fact_唯一ID", "company_code": "999999", "metric": "revenue",
+          "value": "120000000", "unit": "CNY", "period_start": "2025-01-01",
+          "period_end": "2025-12-31", "period_type": "cumulative",
+          "statement_scope": "consolidated", "restated": false,
+          "evidence_ids": ["ev_实际证据ID"], "review_status": "verified", "reason": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+以上 ID/数值仅说明字段形状，**不能直接复制为真实样本**。B 先在 A 的证据页核对原文、页码、框选、单位、期间、合并/母公司及更正公告，再填写数值；未完成核验的事实标 `needs_review` 并填 `reason`。导入时会重查文件 SHA-256、Fact Schema、证据是否来自该文件，以及 verified 事实的证据文本和解析置信度；不匹配则失败。缺清单或缺事实时任务返回待复核，不会臆造财务值。财报分析会展示待复核事实，但不会拿它们计算同比或比率。
+
+当前入口是**人工复核事实导入**，不是对真实年报表格的自动提取。A 已能定位 PDF 证据，B 仍需与 C 按真实披露文件完成事实标注和留出集核验。C 的研报核查只接受 verified 且来源解析置信度至少 0.9 的事实；TXT 的近似定位通常达不到此阈值，联调重点应使用有真实文本层的 PDF。A 的当前离线模型只返回字段候选，不会生成 `IndustryData` / `MemoData`，因此产业链和备忘录有归档资料时还需可用的模型适配器。
+
+本地临时合并 A/B 后，用合成 PDF 验证了 `上传 → 解析 → 证据 → 复核事实 → financial_analysis → 同比 20% → needs_review → 离线重放哈希一致`；这只证明接口贯通，不是年报准确率。临时合并 A/B/C 后，C 的 `research_verification` 能通过同一适配器运行，缺少足够可信来源时正确返回 `needs_review`。两处验证均未写入或合并其他成员的分支。
+
 ## A 侧接入方式
 
 ```python

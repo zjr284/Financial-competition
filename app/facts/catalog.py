@@ -157,7 +157,7 @@ class FactIndex:
                 raise FactConflict(
                     f"Conflicting {metric} facts for {company_code} at {period_end}"
                 )
-        return first
+        return next((fact for fact in matches if fact["review_status"] == "verified"), first)
 
     def all(self) -> list[dict[str, Any]]:
         return list(self._facts)

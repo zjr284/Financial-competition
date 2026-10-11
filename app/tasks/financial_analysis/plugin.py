@@ -51,7 +51,14 @@ class FinancialAnalysisTask:
                     continue
                 if fact is not None:
                     chosen.append(fact)
-                    selected[(period, metric)] = fact
+                    if fact["review_status"] == "verified" and fact["value"] is not None:
+                        selected[(period, metric)] = fact
+                    else:
+                        reviews.append(review_item(
+                            context.run_id,
+                            f"Unverified {metric} for {period} ({scope})",
+                            fact["evidence_ids"],
+                        ))
             for metric in CORE_METRICS:
                 if (period, metric) not in selected:
                     reviews.append(

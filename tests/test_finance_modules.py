@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import jsonschema
 
 from app.tasks.financial_analysis import FinancialAnalysisTask
+from app.facts.reviewed_store import ReviewedFactPort
+from app.tasks.a_bridge import ACompatibleTask
 from app.tasks.industry_impact import IndustryImpactTask
 from app.tasks.investment_memo import InvestmentMemoTask
 from app.tasks.valuation import ValuationTask
@@ -134,6 +138,20 @@ def wrap(task_type: str, context_value: TaskContext, payload: dict) -> dict:
 
 
 class FinancialCalculationTests(unittest.TestCase):
+    def test_unverified_values_are_visible_but_not_used_in_calculations(self):
+        current = fact("fact_unverified_current", "999999", "revenue", "120", "2025-01-01", "2025-12-31")
+        current["review_status"] = "needs_review"
+        current["reason"] = "表格列名尚未人工确认"
+        prior = fact("fact_verified_prior", "999999", "revenue", "100", "2024-01-01", "2024-12-31")
+        ctx = context([current, prior], ("doc_annual_demo",))
+        payload = FinancialAnalysisTask().run(ctx, {
+            "company_code": "999999", "periods": ["2025-12-31", "2024-12-31"],
+            "statement_scope": "consolidated",
+        })
+        self.assertEqual(len(payload["data"]["facts"]), 2)
+        self.assertFalse(any(calc["formula_code"] == "yoy" for calc in payload["calculations"]))
+        self.assertTrue(any("Unverified revenue" in item["reason"] for item in payload["review_items"]))
+
     def test_financial_analysis_recomputes_yoy_and_flags_profit_cash_divergence(self):
         items = [
             fact("fact_rev25", "999999", "revenue", "120000000", "2025-01-01", "2025-12-31"),
@@ -293,6 +311,49 @@ class SynthesisTests(unittest.TestCase):
         self.assertEqual(wrap("industry_impact", ctx, industry)["status"], "needs_review")
         self.assertEqual(wrap("investment_memo", ctx, memo)["status"], "needs_review")
         self.assertIn("ev_industry_01", industry["evidence_ids"])
+
+
+class ReviewedFactBridgeTests(unittest.TestCase):
+    def test_manifest_pins_document_hash_and_evidence_owner(self):
+        item = public_fact(fact("fact_reviewed_rev", "999999", "revenue", "120000000", "2025-01-01", "2025-12-31"))
+        class Documents:
+            def get_document(self, document_id):
+                return {"document_id": document_id, "sha256": "a" * 64}
+        evidence = EvidenceFixture([item])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "facts.json"
+            bundle = {"version": 1, "documents": [{"document_id": "doc_annual_demo", "sha256": "a" * 64, "facts": [item]}]}
+            path.write_text(json.dumps(bundle), encoding="utf-8")
+            port = ReviewedFactPort(path, Documents(), evidence)
+            self.assertEqual(port.extract_facts(["doc_annual_demo"], ["revenue"]), [item])
+            self.assertEqual(port.extract_facts(["doc_other"], ["revenue"]), [])
+            bundle["documents"][0]["sha256"] = "b" * 64
+            path.write_text(json.dumps(bundle), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "hash mismatch"):
+                port.extract_facts(["doc_annual_demo"], ["revenue"])
+            bundle["documents"][0]["sha256"] = "a" * 64
+            evidence.documents[item["evidence_ids"][0]] = "doc_other"
+            path.write_text(json.dumps(bundle), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "is not from"):
+                port.extract_facts(["doc_annual_demo"], ["revenue"])
+
+    def test_a_context_bridge_runs_financial_task_with_reviewed_facts(self):
+        item = public_fact(fact("fact_bridge_rev", "999999", "revenue", "120000000", "2025-01-01", "2025-12-31"))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "facts.json"
+            path.write_text(json.dumps({"version": 1, "documents": [
+                {"document_id": "doc_annual_demo", "sha256": "a" * 64, "facts": [item]}
+            ]}), encoding="utf-8")
+            bridge_context = SimpleNamespace(
+                run_id="run_bridge_test", document_ids=("doc_annual_demo",),
+                documents=SimpleNamespace(get_document=lambda document_id: {"document_id": document_id, "sha256": "a" * 64}),
+                parse=EvidenceFixture([item]), model=ModelFixture(), events=EventFixture(),
+            )
+            payload = ACompatibleTask(FinancialAnalysisTask(), path).run(bridge_context, {
+                "company_code": "999999", "periods": ["2025-12-31"], "statement_scope": "consolidated",
+            })
+            self.assertEqual(payload["data"]["facts"], [item])
+            self.assertTrue(payload["review_items"])  # Other core metrics are genuinely missing.
 
 
 if __name__ == "__main__":
