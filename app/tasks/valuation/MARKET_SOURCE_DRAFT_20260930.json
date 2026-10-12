@@ -1,0 +1,128 @@
+{
+  "purpose": "source preparation and needs_review multiplication drafts, not verified valuation input",
+  "candidates": [
+    {
+      "company_code": "300014",
+      "as_of_date": "2026-09-30",
+      "close_price": "49.81",
+      "price_unit": "CNY/share",
+      "price_source": {
+        "source_url": "https://stock.cngold.org/c/2026-09-30/c10790816.html",
+        "sha256": "fe16c7eebfa2c9aa2edd271f9a03346ffd905ae7228673efe56a02e497093545",
+        "source_type": "third_party_same_day_close_report"
+      },
+      "cross_check_source": {
+        "source_url": "https://money-tree.eyunzhu.com/daily_kline/date/20260930.csv",
+        "sha256": "97fd2f34c890a2293030a5123be003510e58b0fa736f4675a05c67b781446cc0"
+      },
+      "base_total_shares": "2173296935",
+      "base_shares_date": "2026-06-30",
+      "share_unit": "share",
+      "base_share_source": {
+        "source_url": "https://static.cninfo.com.cn/finalpage/2026-07-04/1225409737.PDF",
+        "sha256": "550411ca21701372b88ba0e0a290ae2c3329e73b719a2aa092b7191ff1162147",
+        "page": 5
+      },
+      "announcement_audit": {
+        "query_url": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+        "company_code": "300014",
+        "date_range": "2026-07-01/2026-09-30",
+        "unique_count": 46,
+        "sha256": "7620c13b7678cb4116710784d6dc68ee2eb3d66bfac27ff7b42fa888ad565087",
+        "pagination_complete": true,
+        "titles_only_screened": true
+      },
+      "market_cap_draft": "108251920332.35",
+      "market_cap_unit": "CNY",
+      "review_status": "needs_review",
+      "limitations": [
+        "股本来源为最近已披露基准；公告目录完整性已检查，尚须独立复核相关正文和期间股本变更",
+        "行情为第三方收盘报道与候选 CSV 交叉吻合，未获交易所原始未复权行情认证",
+        "未登记 verified market_cap，不进入正式 valuation Run"
+      ],
+      "calculation_id": "calc_market_screen_e9b1ce552e981342fbfb"
+    },
+    {
+      "company_code": "000049",
+      "as_of_date": "2026-09-30",
+      "close_price": "22.4",
+      "price_unit": "CNY/share",
+      "price_source": {
+        "source_url": "https://4g.stockstar.com/detail/RB2026093000037437",
+        "sha256": "506a860336c28e0bef1193965d12135b0e1f226579d5c26fb0e3638bc49261bf",
+        "source_type": "third_party_same_day_close_report"
+      },
+      "cross_check_source": {
+        "source_url": "https://money-tree.eyunzhu.com/daily_kline/date/20260930.csv",
+        "sha256": "97fd2f34c890a2293030a5123be003510e58b0fa736f4675a05c67b781446cc0"
+      },
+      "base_total_shares": "384638534",
+      "base_shares_date": "2026-06-30",
+      "share_unit": "share",
+      "base_share_source": {
+        "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225476262.PDF",
+        "sha256": "9c448687da45646fc654e51abf73bff96b0d33ff4e2f4d450593d757269fcfe7",
+        "page": 93
+      },
+      "announcement_audit": {
+        "query_url": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+        "company_code": "000049",
+        "date_range": "2026-07-01/2026-09-30",
+        "unique_count": 12,
+        "sha256": "c69e494682d5478735731bee734f15448bfe2ff0a459ff5774bb4ac4bdd41fe9",
+        "pagination_complete": true,
+        "titles_only_screened": true
+      },
+      "market_cap_draft": "8615903161.6",
+      "market_cap_unit": "CNY",
+      "review_status": "needs_review",
+      "limitations": [
+        "股本来源为最近已披露基准；公告目录完整性已检查，尚须独立复核相关正文和期间股本变更",
+        "行情为第三方收盘报道与候选 CSV 交叉吻合，未获交易所原始未复权行情认证",
+        "未登记 verified market_cap，不进入正式 valuation Run"
+      ],
+      "calculation_id": "calc_market_screen_b05fad183caf9edaac5e"
+    },
+    {
+      "company_code": "001283",
+      "as_of_date": "2026-09-30",
+      "close_price": "47.06",
+      "price_unit": "CNY/share",
+      "price_source": {
+        "source_url": "https://4g.stockstar.com/detail/RB2026093000037389",
+        "sha256": "f9cdcaa02649bfd88f5109589bd5ef0be7d85005c0452c0f8420b87ee3155a89",
+        "source_type": "third_party_same_day_close_report"
+      },
+      "cross_check_source": {
+        "source_url": "https://money-tree.eyunzhu.com/daily_kline/date/20260930.csv",
+        "sha256": "97fd2f34c890a2293030a5123be003510e58b0fa736f4675a05c67b781446cc0"
+      },
+      "base_total_shares": "129680120",
+      "base_shares_date": "2026-06-30",
+      "share_unit": "share",
+      "base_share_source": {
+        "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+        "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+        "page": 41
+      },
+      "announcement_audit": {
+        "query_url": "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+        "company_code": "001283",
+        "date_range": "2026-07-01/2026-09-30",
+        "unique_count": 15,
+        "sha256": "a1c3c73a6191e0b4101997a91eb5b34b8efe9ef8cf752c32e1a778e86b61c0d8",
+        "pagination_complete": true,
+        "titles_only_screened": true
+      },
+      "market_cap_draft": "6102746447.20",
+      "market_cap_unit": "CNY",
+      "review_status": "needs_review",
+      "limitations": [
+        "股本来源为最近已披露基准；公告目录完整性已检查，尚须独立复核相关正文和期间股本变更",
+        "行情为第三方收盘报道与候选 CSV 交叉吻合，未获交易所原始未复权行情认证",
+        "未登记 verified market_cap，不进入正式 valuation Run"
+      ],
+      "calculation_id": "calc_market_screen_c08fa323d113027c7e98"
+    }
+  ]
+}

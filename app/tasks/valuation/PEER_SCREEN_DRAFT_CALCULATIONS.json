@@ -456,6 +456,82 @@
       "period_end": "2026-06-30",
       "review_status": "needs_review",
       "calculation_id": "calc_screen_10907ae9ce325f9418b9"
+    },
+    {
+      "company_code": "001283",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "203074851.02",
+        "122933409.88",
+        "96710693.57"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-04-03/7c730243-2ecc-4169-9bda-1a44011d3de6.PDF",
+          "sha256": "9b22483c7dbc26f006e0006ee09578c7d441808a6ef62cbd73441fabdee4b69d",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "229297567.33",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_db173fa0ac6d6297e587"
+    },
+    {
+      "company_code": "001283",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "192702261.29",
+        "100433683.13",
+        "79839749.71"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-04-03/7c730243-2ecc-4169-9bda-1a44011d3de6.PDF",
+          "sha256": "9b22483c7dbc26f006e0006ee09578c7d441808a6ef62cbd73441fabdee4b69d",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "213296194.71",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_17f793dd09145050b37a"
     }
   ]
 }
