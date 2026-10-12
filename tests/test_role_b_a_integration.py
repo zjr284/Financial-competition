@@ -65,7 +65,19 @@ class RoleBAIntegrationTests(unittest.TestCase):
                 result = app.get_result(run["run_id"])
                 yoy = next(calc for calc in result["calculations"] if calc["formula_code"] == "yoy")
                 self.assertEqual(yoy["value"], "20")
-                self.assertTrue(app.orchestrator.replay(run["run_id"])["result_hash_match"])
+                first_replay = app.orchestrator.replay(run["run_id"])
+                self.assertTrue(first_replay["result_hash_match"])
+                self.assertTrue(first_replay["trace_match"])
+
+                snapshot = Path(directory) / "runs" / run["run_id"] / "b-reviewed-facts.json"
+                self.assertTrue(snapshot.is_file())
+                manifest_path.write_text('{"version": 1, "documents": []}', encoding="utf-8")
+                pinned_replay = app.orchestrator.replay(run["run_id"])
+                self.assertTrue(pinned_replay["result_hash_match"])
+                self.assertTrue(pinned_replay["trace_match"])
+                fresh = app.run_task(request)
+                self.assertEqual(fresh["status"], "needs_review")
+                self.assertEqual(app.get_result(fresh["run_id"])["calculations"], [])
 
                 manifest["documents"][0]["sha256"] = "0" * 64
                 manifest_path.write_text(json.dumps(manifest), encoding="utf-8")

@@ -15,9 +15,9 @@
 
 A 可调用 `app.tasks.role_b.get_role_b_tasks()` 一次性取得四个 `task_type → TaskPlugin` 映射并注册到编排器。
 
-## 与 A/C 当前分支的对接（2026-10-11）
+## 与 A/C 已合并模块的对接（更新于 2026-10-12）
 
-A 的 `feature/member-a-base` 已有文档登记、PDF/TXT 解析、证据定位和编排器，但 `_TaskContext` 暂无 `evidence`、`calculations` 两个端口。B 在 `app.tasks.a_bridge` 提供适配器，**只改 B 的目录**。在 A 的应用启动后、创建 Run 前调用：
+`main` 已包含 A 的文档登记、PDF/TXT 解析、证据定位和编排器，也包含 C 的研报核查与质量评估。A 的 `_TaskContext` 暂无 `evidence`、`calculations` 两个端口。B 在 `app.tasks.a_bridge` 提供适配器，**只改 B 的目录**。在 A 的应用启动后、创建 Run 前调用：
 
 ```python
 from app.container import build_app
@@ -28,7 +28,15 @@ install_role_b(app)  # 默认为 app.settings.data_dir / "reviewed_facts.json"
 # 或 install_role_b(app, "/path/to/private/reviewed_facts.json")
 ```
 
-这会注册 `financial_analysis`、`valuation`、`industry_impact`、`investment_memo`。A 的默认 `build_app()` 尚未自动调用它；合并时需 A 在装配层调用，或在启动脚本中显式调用。适配器每次运行新建计算器，并把 A 的 `DocumentService + ParseService` 包装为公共 Document/Evidence 端口。A 目前仅捕获 `AppError`；适配器把输入/来源/模型校验异常转换成结构化失败，避免 Run 停在 `running`。C 的 `research_verification` 也可使用 `ACompatibleTask(ResearchVerificationTask(), manifest_path)` 获得同一组端口，但 C 模块注册及默认装配仍由 A/C 确认。
+这会注册 `financial_analysis`、`valuation`、`industry_impact`、`investment_memo`。A 的默认 `build_app()` 尚未自动调用它；团队的 `python -m demo.live --data-dir var/team-live` 已显式安装 B/C 任务。适配器每次运行新建计算器，并把 A 的 `DocumentService + ParseService` 包装为公共 Document/Evidence 端口。A 目前仅捕获 `AppError`；适配器把输入/来源/模型校验异常转换成结构化失败，避免 Run 停在 `running`。C 的两题由 `install_role_c` 独立注册，复用相同的已复核事实格式。
+
+B 的适配器在首次运行时只选取本次文档的事实，固定到 `var/runs/<run_id>/b-reviewed-facts.json`，事件流记录快照哈希；随后修改总清单只影响新 Run，旧 Run 重放继续读取自己的快照。计算事件的输入／输出哈希同时写入持久日志和重放轨迹。修订已完成的 Run 应创建新 Run，不能在原 Run 上替换证据。运行和重放验证：
+
+```bash
+python3 -m unittest discover -s tests -p 'test_role_b_a_integration.py' -v
+```
+
+该测试使用合成 PDF 验证证据页码与 bbox、同比、快照隔离、重放结果及轨迹一致，以及过期文档哈希导致的结构化失败。C 的相同边界另由 `eval/test_c_runtime.py` 验证。
 
 ### 经复核事实清单
 
@@ -59,7 +67,7 @@ install_role_b(app)  # 默认为 app.settings.data_dir / "reviewed_facts.json"
 
 当前入口是**人工复核事实导入**，不是对真实年报表格的自动提取。A 已能定位 PDF 证据，B 仍需与 C 按真实披露文件完成事实标注和留出集核验。C 的研报核查只接受 verified 且来源解析置信度至少 0.9 的事实；TXT 的近似定位通常达不到此阈值，联调重点应使用有真实文本层的 PDF。A 的当前离线模型只返回字段候选，不会生成 `IndustryData` / `MemoData`，因此产业链和备忘录有归档资料时还需可用的模型适配器。
 
-本地临时合并 A/B 后，用合成 PDF 验证了 `上传 → 解析 → 证据 → 复核事实 → financial_analysis → 同比 20% → needs_review → 离线重放哈希一致`；这只证明接口贯通，不是年报准确率。临时合并 A/B/C 后，C 的 `research_verification` 能通过同一适配器运行，缺少足够可信来源时正确返回 `needs_review`。两处验证均未写入或合并其他成员的分支。
+已合并代码可用合成 PDF 验证 `上传 → 解析 → 证据 → 复核事实 → financial_analysis → 同比 20% → needs_review → 离线重放哈希与轨迹一致`；这只证明接口贯通，不是年报准确率。C 的 `research_verification` 对缺少足够可信来源的声明返回 `needs_review`。
 
 ## A 侧接入方式
 
@@ -122,7 +130,7 @@ python3 contracts/validate_contracts.py
 
 ## 待接入与金融复核
 
-1. A 接入真实 PDF/OCR、文档哈希、证据坐标、模型服务和运行状态；C 将结构化结果与原文页同屏展示。
+1. A 已实现文档哈希、文本层 PDF 证据坐标和运行状态；扫描件 OCR、真实模型服务及真实 PDF 跨页表格仍需验证。C 已实现证据对照页面。
 2. B 与 C 共同选定真实上市公司样本，由 B 逐项核对归母／扣非、合并／母公司、累计／单季及更正公告。当前代码尚未用真实年报做准确率评测。
 3. 产业链和备忘录模块会调用模型，但对因果与投资判断始终保留人工复核项。提交前必须检查模型输出是否与原文一致、资料是否仍在适用期。
 4. 如确需修改公共字段，在 `docs/接口问题记录.md` 提议，由三人确认后同步修改 Schema、OpenAPI 和示例。
