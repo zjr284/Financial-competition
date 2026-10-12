@@ -7,6 +7,7 @@
   FINSCOPE_MAX_FILE_MB   单文件上限，默认 50
   FINSCOPE_MAX_PDF_PAGES 单 PDF 页数上限，默认 300
   FINSCOPE_OCR_ENABLED   是否允许 OCR 适配器，默认 0（离线环境无 OCR 引擎）
+  FINSCOPE_RUN_STALE_SECONDS  running 悬挂多久判定为失联，默认 900 秒
   FINSCOPE_MODEL_ID      模型标识，默认 rule-based-offline
   FINSCOPE_MODEL_REVISION 模型修订号
   FINSCOPE_PROMPT_VERSION 提示词版本
@@ -59,6 +60,8 @@ class Settings:
     max_file_bytes: int = field(default_factory=lambda: _env_int("FINSCOPE_MAX_FILE_MB", 50) * 1024 * 1024)
     max_pdf_pages: int = field(default_factory=lambda: _env_int("FINSCOPE_MAX_PDF_PAGES", 300))
     ocr_enabled: bool = field(default_factory=lambda: _env_bool("FINSCOPE_OCR_ENABLED", False))
+    # running 悬挂多久判定为失联（进程被杀/断电后没有机会写终态）
+    run_stale_seconds: int = field(default_factory=lambda: _env_int("FINSCOPE_RUN_STALE_SECONDS", 900))
     model_id: str = field(default_factory=lambda: os.environ.get("FINSCOPE_MODEL_ID", "rule-based-offline"))
     model_revision: str = field(default_factory=lambda: os.environ.get("FINSCOPE_MODEL_REVISION", "v1"))
     prompt_version: str = field(default_factory=lambda: os.environ.get("FINSCOPE_PROMPT_VERSION", "prompt-v1"))
@@ -102,6 +105,7 @@ class Settings:
             "allowed_media_types": sorted(ALLOWED_MEDIA_TYPES.values()),
             "ocr_enabled": self.ocr_enabled,
             "ocr_confidence_floor": self.ocr_confidence_floor,
+            "run_stale_seconds": self.run_stale_seconds,
             "model_id": self.model_id,
             "model_revision": self.model_revision,
             "prompt_version": self.prompt_version,

@@ -17,8 +17,10 @@
 | 6 | 任务编排与离线重放（`app/orchestrator/`） | `RunRequest` | `Run`、`TaskResult` | ✅ 已验证 |
 | 7 | HTTP 服务（`api/`） | OpenAPI 定义 | 各端点响应 | ✅ 已验证 |
 | 8 | 选题 1 结构化提取（`app/tasks/structured_extraction/`） | `ExtractionInput` | `ExtractionData` | ✅ 已验证 |
+| 9 | 导出（`app/export/`） | `run_id` + 格式 | JSON / CSV / HTML 文件 | ✅ 已验证 |
+| 10 | 运行指标与失联恢复（`app/orchestrator/`、`app/logging/`） | `run_id` / 阈值 | `metrics.json`、已收口的 `Run` | ✅ 已验证 |
 
-**汇总验收结果：** `python -m pytest tests/` → **86 passed**；`python contracts/validate_contracts.py` → **Contract validation passed: 7 requests, 7 results, 7 entities, 10 API paths**；`python -m app.cli selftest` → `replay_ok: true`。
+**汇总验收结果：** `python -m pytest tests/ eval/` → **147 passed**（含队友 B/C 的测试）；`python contracts/validate_contracts.py` → **Contract validation passed: 7 requests, 7 results, 7 entities, 10 API paths**；`python -m app.cli selftest` → `replay_ok: true`。
 
 ---
 
@@ -114,7 +116,11 @@ tool_call    task:structured_extraction.done  任务插件返回 0 条待复核�
 state        execute_run                  任务结束：succeeded
 ```
 
-**运行清单目录：** `var/runs/<run_id>/` → `manifest.json`、`events.jsonl`、`result.json`（或 `result.needs_review.json`）、`error.json`、`trace.json`。
+**运行清单目录：** `var/runs/<run_id>/` → `manifest.json`、`events.jsonl`、`result.json`（或 `result.needs_review.json`）、`error.json`、`trace.json`、`metrics.json`。
+
+**落盘顺序保证：** 结果文件、轨迹、`metrics.json` 与"任务结束"事件都在终态可见**之前**写入。
+因此客户端一读到 `succeeded`/`needs_review`/`failed`，清单必然已完整，不会出现"读到终态但事件还差一条"的竞态
+（该竞态由队友 C 的 `eval/test_c_runtime.py` 发现并已修复，见计划书 §11 第 8 条）。
 
 **失败样例：** 手工改写任一事件后 `verify_chain` 返回 `{"ok": false, "broken_at": <seq>}`（见 `tests/test_orchestrator.py::test_event_chain_detects_tampering`）。
 
@@ -266,13 +272,19 @@ review_items: review_WGEIL7F72H3YMY3GOP4V → target_id=event_QI6OXT3MFSSPR5DI36
 
 | 项 | 说明 | 影响 |
 |---|---|---|
-| 失败恢复策略 | 进程中断后 `running` 悬挂态尚无超时改判 | 长时间运行的任务需人工干预 |
 | 重试与退避计数 | `attempt` 字段已预留，未实现自动重试写回 | 模型调用失败需重跑 |
-| `metrics.json` | `实施路线与验收清单.md` 第 2 节要求的指标文件未产出 | 运行清单不完整 |
-| 导出（`export` 事件） | JSON/CSV/HTML 导出未实现 | 结果只能通过 API 获取 |
 | 跨页表格 | 表头与数据行分页时尚未合并 | 真实年报回归待验证 |
 | 旋转页坐标 | PDF `/Rotate` 非 0 时的坐标校正未验证 | 部分扫描件坐标可能偏移 |
 | 页数超限用例 | 未构造超页数 PDF 的自动化测试 | 边界覆盖不足 |
+| 非记录型结果的导出视图 | 其它选题的 HTML 只显示"无表格视图"，未做专门模板 | 展示效果待 B/C 提出需求后再定 |
+
+**已完成项（上一版列在此处的未完成项）：**
+
+| 项 | 实现位置 |
+|---|---|
+| `metrics.json`（实施路线第 2 节要求） | `app/logging/events.py::build_metrics` + `EventLog.write_metrics`，含状态、耗时、事件分类计数、工具清单、错误码、哈希链校验 |
+| 导出 JSON / CSV / HTML 与 `export` 事件 | `app/export/service.py`；导出只重排已有结果、不新增数值，且**不改动 `result_hash`**（有测试守住） |
+| `running` 悬挂态失败恢复 | `Orchestrator.recover_stuck_runs` / `python -m app.cli recover`；幂等、可追溯、可重试 |
 
 ### 7.3 环境侧限制
 

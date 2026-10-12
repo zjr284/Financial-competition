@@ -125,6 +125,28 @@ def cmd_evidence(args: argparse.Namespace) -> int:
         app.close()
 
 
+def cmd_export(args: argparse.Namespace) -> int:
+    """导出结果：JSON / CSV / HTML。"""
+    app = build_app(get_settings())
+    try:
+        outcome = app.export_run(args.run_id, formats=args.format, out_dir=args.out_dir)
+        _print(outcome)
+        return 0
+    finally:
+        app.close()
+
+
+def cmd_recover(args: argparse.Namespace) -> int:
+    """把长时间停在 running 的 Run 改判为 failed（进程被杀/断电后的兜底）。"""
+    app = build_app(get_settings())
+    try:
+        recovered = app.recover_stuck_runs(stale_seconds=args.stale_seconds)
+        _print({"count": len(recovered), "recovered": recovered})
+        return 0
+    finally:
+        app.close()
+
+
 def cmd_verify_contracts(args: argparse.Namespace) -> int:
     import subprocess
 
@@ -218,6 +240,27 @@ def main(argv: list[str] | None = None) -> int:
 
     verify = sub.add_parser("verify-contracts", help="运行 contracts/validate_contracts.py")
     verify.set_defaults(func=cmd_verify_contracts)
+
+    recover = sub.add_parser("recover", help="把长时间停在 running 的失联 Run 改判为 failed")
+    recover.add_argument(
+        "--stale-seconds",
+        type=int,
+        default=None,
+        help="超过该秒数仍为 running 则判为失联；默认取 FINSCOPE_RUN_STALE_SECONDS（900）",
+    )
+    recover.set_defaults(func=cmd_recover)
+
+    export = sub.add_parser("export", help="导出结果（JSON/CSV/HTML）")
+    export.add_argument("run_id")
+    export.add_argument(
+        "--format",
+        nargs="+",
+        default=["json", "csv", "html"],
+        choices=["json", "csv", "html"],
+        help="导出格式，可多选",
+    )
+    export.add_argument("--out-dir", default=None, help="输出目录；默认为 <data_dir>/exports/<run_id>")
+    export.set_defaults(func=cmd_export)
 
     selftest = sub.add_parser("selftest", help="端到端自检（登记->解析->任务->重放）")
     selftest.set_defaults(func=cmd_selftest)

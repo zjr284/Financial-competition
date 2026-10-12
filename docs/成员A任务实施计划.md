@@ -253,7 +253,7 @@ flowchart TD
 | Q3 | `Document.page_count` 要求 ≥1，但 TXT/CSV/XLSX 没有页概念（CSV 现按行数计） | 跨格式一致性 | TXT 记 1 页；CSV 记行数；XLSX 记行数。是否改为"逻辑块数"需确认 |
 | Q4 | 契约只定义 bbox 为归一化坐标，未声明非 PDF 来源的坐标是近似版面值 | 前端框选准确性 | 以 `extraction_method` + `confidence` + `warnings` 三重标注，建议契约补一句说明 |
 | Q5 | `structured_extraction` 是否允许产出 `calculations`（Schema 允许数组） | 结果语义 | 本轮返回空数组，金额换算在字段归一化内完成；若需展示"万股→股"换算链则改为写入 `calculations` |
-| Q6 | A 新增的 3 条端点（`/documents/{id}/parse`、`/documents/{id}/evidence`、`/runs/{id}/replay`）未在 OpenAPI 中 | 契约完整性 | 联调已可用，待确认后同步 OpenAPI 与 `validate_contracts.py` 的 `len(paths)==10` 断言 |
+| Q6 | A 新增的 4 条端点（`/documents/{id}/parse`、`/documents/{id}/evidence`、`/runs/{id}/replay`、`/runs/{id}/export`）未在 OpenAPI 中 | 契约完整性 | 联调已可用，待确认后同步 OpenAPI 与 `validate_contracts.py` 的 `len(paths)==10` 断言（应改为 14） |
 | Q7 | 契约未规定 `X-Request-Id` 由服务端生成还是回显调用方传入值 | 排查一致性 | 当前服务端生成 16 位十六进制并始终返回 |
 | Q8 | 选题 1 的"公司代码"来源未规定优先级：披露文件内代码 vs `task_input`。`ExtractionInput` 只含 `announcement_types` | 多主体公告易错 | 只从原文取 6 位代码并挂证据；取不到时 `company_code="000000"` + 字段 `needs_review`。该占位值的处理方式需确认 |
 
@@ -276,32 +276,39 @@ flowchart TD
 
 **第一批（不依赖任何人，立刻可做，目标：自检全绿）——✅ 已完成**
 1. ✅ 补 `tests/test_structured_extraction.py`、`tests/test_orchestrator.py`、`tests/test_api.py`，把已实现模块变成"有测试支撑"。
-2. ✅ `python -m pytest` → **86 passed**；`python contracts/validate_contracts.py` → **7 requests / 7 results / 7 entities / 10 API paths**。
+2. ✅ `python -m pytest` 全绿；`python contracts/validate_contracts.py` → **7 requests / 7 results / 7 entities / 10 API paths**。
 3. ✅ 补 D9 的运行说明（[成员A运行说明](成员A运行说明.md)：一条命令运行、限制数值、故障说明）与 `requirements.lock`。
 
-> 本批顺带修掉 6 个被测试暴露的真实缺陷，记录在 §11。
+> 本批顺带修掉 7 个被测试暴露的真实缺陷，记录在 §11。
+
+**第一批追加（代码整合到 `main` 后）——✅ 已完成**
+4. ✅ 整合回归：`python -m pytest tests/ eval/` → **147 passed**，三名成员的模块合并后接口未互相破坏。
+5. ✅ 运行目录补 `metrics.json`（状态、耗时、事件分类计数、工具清单、错误码、哈希链）。
+6. ✅ 实现导出与 `export` 事件：JSON / CSV / HTML，导出只重排不新增数值，且不改动 `result_hash`。
+7. ✅ `running` 悬挂态失败恢复：`python -m app.cli recover`（或 `app.recover_stuck_runs()`），幂等、可追溯、可重试。
+8. ✅ 修掉整合后暴露的**终态与事件落盘的竞态**（`eval/test_c_runtime` 捕获），见 §11 第 8 条。
 
 **第二批（契约对齐，需三人确认）**
-4. 把 Q1—Q8 写入 `docs/接口问题记录.md`（✅ 已登记，等待决议）。
-5. Q6 确认后同步 `contracts/openapi.yaml` 与 `contracts/validate_contracts.py`（**改公共契约必须先改契约再改实现**）。
+9. 把 Q1—Q8 写入 `docs/接口问题记录.md`（✅ 已登记，等待决议）。
+10. Q6 确认后同步 `contracts/openapi.yaml` 与 `contracts/validate_contracts.py`（**改公共契约必须先改契约再改实现**）。
 
 **第三批（依赖他人/真实资料，可在资料到位后启动）**
-6. 真实样例回归（跨页表格、旋转页、单位混用、多主体），修复解析与切分缺陷。
-7. B 的 `Fact`/`Calculation` 就绪后，接入 `financial_analysis` 的编排联调；C 的评测脚本就绪后，提供选题 1 的留出集可复跑入口。
-8. 录屏前冻结版本：运行清单 + 样例包 + 代码版本三者一致。
+11. 真实样例回归（跨页表格、旋转页、单位混用、多主体），修复解析与切分缺陷。
+12. B 的 `Fact`/`Calculation` 已整合，可继续推进七题联调；C 的评测脚本就绪后，提供选题 1 的留出集可复跑入口。
+13. 录屏前冻结版本：运行清单 + 样例包 + 代码版本三者一致。
 
 ---
 
 ## 8.1 下一批建议（按性价比排序）
 
-| 优先级 | 事项 | 理由 |
+| 优先级 | 事项 | 状态 |
 |---|---|---|
-| 高 | 运行目录补 `metrics.json`、实现导出与 `export` 事件 | `实施路线与验收清单.md` 第 2 节明确要求，缺失会被认为运行清单不完整 |
-| 高 | `running` 悬挂态的失败恢复（超时改判 `failed` + 原因） | 演示中断电/中断进程时的兜底，评审现场最怕卡死 |
-| 中 | 跨页表格解析（表头与数据行分页） | 真实年报的必然场景，直接影响选题 1 召回 |
-| 中 | 旋转页（`/Rotate`）坐标校正 | 扫描件与部分年报存在，影响框选准确性 |
-| 中 | OpenAPI 与实现的一致性自动检查 | 防止 Q6 引入的 3 条端点长期游离于契约之外 |
-| 低 | 页数超限、超大文件等边界用例补全 | 边界覆盖，非演示主线 |
+| 高 | 运行目录补 `metrics.json`、实现导出与 `export` 事件 | ✅ 已完成 |
+| 高 | `running` 悬挂态的失败恢复（超时改判 `failed` + 原因） | ✅ 已完成 |
+| 中 | 跨页表格解析（表头与数据行分页） | ⬜ 待做 |
+| 中 | 旋转页（`/Rotate`）坐标校正 | ⬜ 待做 |
+| 中 | OpenAPI 与实现的一致性自动检查 | ⬜ 待做（依赖 Q6 先确认端点清单） |
+| 低 | 页数超限、超大文件等边界用例补全 | ⬜ 待做 |
 
 ---
 
@@ -332,9 +339,9 @@ flowchart TD
 
 ---
 
-## 11. 第一批测试暴露并修复的缺陷
+## 11. 测试暴露并修复的缺陷
 
-补测试的价值不只是"有测试"，而是把下面 6 个真实缺陷挖出来了。它们都不在样例的"正常路径"上，
+补测试的价值不只是"有测试"，而是把下面 8 个真实缺陷挖出来了。它们都不在样例的"正常路径"上，
 但会在评审环境或重放验收时直接暴露。
 
 | # | 缺陷 | 症状 | 根因 | 修复 |
@@ -346,8 +353,14 @@ flowchart TD
 | 5 | **`result_hash` 把随机 `run_id` 算进哈希** | 同一输入两次运行结果哈希不同，违反"固定输入可复现" | 哈希基未排除 `run_id` | 哈希基排除 `run_id` 与 `generated_at`，其余字段全部参与（`_result_hash`） |
 | 6 | 首次解析与重放的轨迹/警告不可比 | 首次运行会追加"本次首次解析"warning，且解析事件记在任务插件里，重放读缓存导致轨迹错位 | 运行态信息混入结果内容；解析发生在插件层而非编排层 | 解析上移到编排层 `_ensure_index` 并在事件流留痕；结果 `warnings` 只保留内容相关项；轨迹按原始事件流复刻（`app/orchestrator/service.py`、`app/tasks/structured_extraction/task.py`） |
 | 7 | 复核修正后 Run 状态与结果状态不一致 | 出现 `Run.status=succeeded` 与 `TaskResult.status=needs_review` 并存 | `_apply_correction` 只改 Run 状态，未同步结果状态 | 同步设置 `result["status"]`，并追加 `apply_correction` 事件 |
+| 8 | **终态可见早于事件与清单落盘（竞态）** | 客户端刚读到 `succeeded` 就去数事件，结果少一条；`eval/test_c_runtime` 的重放用例报 `20 != 21` | `execute_run` 先写终态、后写"任务结束"事件与清单文件 | 调整为：结果文件 → 轨迹 → 指标 → 结束事件 → **最后**才写终态；失败路径同样处理。连跑 5 次验证稳定 |
+
+**发现路径值得记录：** 第 8 条是**队友 C 的测试**抓出来的。我起初怀疑是我新写的 `replay` 在偷写事件，
+实测后排除（单独复现时 `before == after`、新增事件为空），才定位到是"终态可见性 vs 落盘顺序"的竞态。
+这说明跨成员测试很有价值——它覆盖了我自己测试没想到的时序假设。
 
 **教训（写进后续开发习惯）：**
 1. "运行态信息"（本次是否首次解析、耗时、随机 ID）绝不能进结果内容，否则重放验收必然失败；
 2. 凡是参与哈希的字段，必须先问"换了机器/换了运行次数还一样吗"；
-3. 测试断言写错和产品代码有 bug 要分开处理——本次 3 个失败里，只有 1 个是测试断言错（y 轴方向），其余都是产品缺陷。
+3. 测试断言写错和产品代码有 bug 要分开处理——第一批 3 个失败里，只有 1 个是测试断言错（y 轴方向），其余都是产品缺陷；
+4. **凡是"客户端能看到的状态"，都必须晚于它所需读到的数据落盘**，否则就会出现时序竞态。

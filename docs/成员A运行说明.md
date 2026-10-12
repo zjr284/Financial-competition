@@ -71,6 +71,7 @@ python -m pytest tests/
 | `FINSCOPE_MAX_FILE_MB` | `50` | 单文件上限（MB），超出返回 `FILE_TOO_LARGE`(413) |
 | `FINSCOPE_MAX_PDF_PAGES` | `300` | 单 PDF 页数上限，超出返回 `FILE_TOO_LARGE`(413) |
 | `FINSCOPE_OCR_ENABLED` | `0` | 是否允许 OCR；无引擎时置 1 也不会生效 |
+| `FINSCOPE_RUN_STALE_SECONDS` | `900` | `running` 超过该秒数判为失联，`recover` 会改判为 `failed` |
 | `FINSCOPE_MODEL_ID` | `rule-based-offline` | 写入 Run 的模型标识 |
 | `FINSCOPE_MODEL_REVISION` | `v1` | 模型修订号 |
 | `FINSCOPE_PROMPT_VERSION` | `prompt-v1` | 提示词版本 |
@@ -90,6 +91,8 @@ python -m app.cli run structured_extraction --documents <doc_id> --announcement-
 python -m app.cli replay <run_id>                        # 离线重放并比对哈希
 python -m app.cli events <run_id>                        # 事件分页 + 哈希链校验
 python -m app.cli evidence <evidence_id>                 # 单条证据（页码、bbox、片段）
+python -m app.cli export <run_id> [--format json csv html] [--out-dir D:\x]   # 导出
+python -m app.cli recover [--stale-seconds 900]          # 失联 running 改判为 failed
 python -m app.cli verify-contracts                       # 调用 contracts/validate_contracts.py
 python -m app.cli selftest                               # 端到端自检
 ```
@@ -115,13 +118,14 @@ python -m app.cli selftest                               # 端到端自检
 | GET | `/evidence/{evidence_id}` | 证据原文位置与片段 |
 | POST | `/reviews/{review_id}/decision` | 人工接受/驳回/修正 |
 
-### 5.2 A 新增的 3 条端点（**尚未写入 OpenAPI，待三人确认**，见接口问题记录 Q6）
+### 5.2 A 新增的 4 条端点（**尚未写入 OpenAPI，待三人确认**，见接口问题记录 Q6）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | `/documents/{document_id}/parse` | 触发解析，返回 `ParseManifest`（证据数、warnings、backend） |
 | GET | `/documents/{document_id}/evidence` | 列出文档全部证据（可按 `page` 过滤） |
 | POST | `/runs/{run_id}/replay` | 离线重放并返回哈希/轨迹比对结论 |
+| POST | `/runs/{run_id}/export` | 导出结果，body 可带 `{"formats": ["json","csv","html"]}` |
 
 > 联调期可用，但**不得**对外声称它们属于已冻结契约。
 
@@ -182,6 +186,25 @@ python tools/smoke_extraction.py
 | `result.json` / `result.needs_review.json` | 结构化结果 |
 | `error.json` | 失败时的契约 `Error` |
 | `trace.json` | `(事件类型, 工具名, 输入哈希, 输出哈希)` 轨迹 + 哈希链校验结果 |
+| `metrics.json` | 运行指标：状态、耗时、各类事件计数、工具清单、错误码、哈希链校验、记录/证据/复核数 |
+
+`metrics.json` 示例（成功运行）：
+
+```json
+{
+  "run_id": "run_XXXXXXXX", "task_type": "structured_extraction", "status": "succeeded",
+  "duration_ms": 12, "terminal": true,
+  "counts": {"events": 6, "file_access": 1, "tool_call": 2, "calculation": 0,
+             "model_call": 0, "export": 0, "error": 0,
+             "evidence_ids": 8, "calculations": 0, "review_items": 0, "warnings": 0, "records": 1},
+  "tools": ["create_run", "execute_run", "load_index", "task:structured_extraction", "task:structured_extraction.done"],
+  "error_code": null, "chain": {"ok": true, "checked": 6, "broken_at": null}
+}
+```
+
+**写入顺序保证：** 结果文件、轨迹、`metrics.json` 与"任务结束"事件都在终态可见**之前**落盘。
+因此客户端一旦读到 `succeeded`/`needs_review`/`failed`，运行目录里的清单必然已经完整，
+不会出现"读到终态但事件还差一条"的竞态。
 
 重放判定依据：
 
@@ -192,10 +215,52 @@ python tools/smoke_extraction.py
 
 ---
 
-## 8. 测试与契约校验
+## 8. 导出与失联恢复
+
+### 8.1 导出（JSON / CSV / HTML）
 
 ```powershell
-python -m pytest tests/ -q          # 86 项
+python -m app.cli export <run_id>                          # 默认三种格式全导
+python -m app.cli export <run_id> --format json csv        # 指定格式
+python -m app.cli export <run_id> --out-dir D:\somewhere   # 指定输出目录
+```
+
+默认输出到 `var/exports/<run_id>/`：
+
+| 文件 | 内容 |
+|---|---|
+| `result.export.json` | 完整可追溯导出，内容与 `GET /runs/{id}/result` 逐字一致 |
+| `records.csv` | 记录型结果展开为字段矩阵（一字段一行），`utf-8-sig` 编码，Excel 打开中文不乱码 |
+| `report.html` | 人读报告：按记录分组展示字段、状态、证据 ID 与缺失原因；顶部标注"接口演示样例" |
+
+约定：
+
+* 导出**只重排已有结果**，不调用模型、不新增数值，也不改动 `result_hash`（有测试守住）；
+* 导出后写 `export` 事件（含输出文件哈希）并刷新 `metrics.json`，使"这份报告来自哪次运行"可事后核对；
+* 非记录型结果（其它成员的选题）不会给空表：JSON 照常导出，CSV 给通用表并在 `warnings` 说明，HTML 显示"无表格视图"；
+* 运行未终结时导出返回 `RUN_NOT_READY`(409)。
+
+### 8.2 失联 Run 恢复
+
+```powershell
+python -m app.cli recover                       # 超过 FINSCOPE_RUN_STALE_SECONDS(900) 仍 running 的判为失败
+python -m app.cli recover --stale-seconds 60    # 演示/调试时用更短阈值
+```
+
+**为什么需要：** 进程被强杀或断电时 `execute_run` 没有机会写终态，Run 会永久停在 `running`，
+前端轮询到天荒地老、评审看到"卡死"。`recover` 按 `started_at` 判断失联并落一个可追溯的终态：
+
+* 改判为 `failed`，`error.code = INTERNAL_ERROR`、`retryable = true`，`details` 写明失联秒数与阈值；
+* 补写 `error` 事件、`error.json`、`trace.json`、`metrics.json`，哈希链保持连续；
+* 只处理 `running`：`queued` 尚未开始、`needs_review` 在等人工，都不会被自动改判；
+* 幂等：重复执行不会二次改判，也不会重复写事件。
+
+---
+
+## 9. 测试与契约校验
+
+```powershell
+python -m pytest tests/ eval/ -q     # 147 项（含队友 B/C 的测试）
 python contracts/validate_contracts.py
 ```
 
@@ -207,11 +272,14 @@ python contracts/validate_contracts.py
 | `tests/test_ingest_parse.py` | 稳定登记 ID、更正公告新版本、格式/大小校验、PDF 坐标抽查、无文本层失败、CSV 行列、纯标准库后端、阅读顺序 |
 | `tests/test_structured_extraction.py` | 三类公告成功样例、失败/待复核样例、单位与百分比、证据指向原文、表格路径、`event_id` 契约形状 |
 | `tests/test_orchestrator.py` | Run 状态机白名单、TaskResult 校验、事件类型与哈希链、分页、离线重放、两次运行同哈希、人工复核回写 |
-| `tests/test_api.py` | 13 条路由、错误码映射（400/404/409/413/415）、`X-Request-Id`、`ETag`、multipart、真实 TCP 往返 |
+| `tests/test_run_artifacts_export.py` | 运行目录固定产物、`metrics.json` 字段、导出三格式、导出不改结果哈希、失联恢复（正常/新鲜/终态/幂等/可重试） |
+| `tests/test_api.py` | 14 条路由、错误码映射（400/404/409/413/415）、`X-Request-Id`、`ETag`、multipart、真实 TCP 往返 |
+
+`eval/` 下是队友 B/C 的测试（字段归一化、财务模块、C 的运行时与前端联调），一并纳入回归。
 
 ---
 
-## 9. 已知限制与故障处理
+## 10. 已知限制与故障处理
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
@@ -224,7 +292,7 @@ python contracts/validate_contracts.py
 
 ---
 
-## 10. 与本仓库其他文档的关系
+## 11. 与本仓库其他文档的关系
 
 | 文档 | 用途 |
 |---|---|

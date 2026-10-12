@@ -73,6 +73,7 @@ class ApiService:
         r.add("GET", "/api/v1/runs/{run_id}/result", self.get_result)
         r.add("GET", "/api/v1/runs/{run_id}/events", self.get_events)
         r.add("POST", "/api/v1/runs/{run_id}/replay", self.replay_run)
+        r.add("POST", "/api/v1/runs/{run_id}/export", self.export_run)
         r.add("GET", "/api/v1/evidence/{evidence_id}", self.get_evidence)
         r.add("POST", "/api/v1/reviews/{review_id}/decision", self.decide_review)
 
@@ -134,6 +135,13 @@ class ApiService:
 
     def replay_run(self, body: Any = None, query: dict[str, Any] | None = None, **params: str) -> tuple[int, Any]:
         return 200, self.app.orchestrator.replay(params["run_id"])
+
+    def export_run(self, body: Any = None, query: dict[str, Any] | None = None, **params: str) -> tuple[int, Any]:
+        request = body if isinstance(body, dict) else {}
+        formats = request.get("formats") or ["json", "csv", "html"]
+        if not isinstance(formats, list) or not all(isinstance(item, str) for item in formats):
+            raise validation_error("formats 必须是字符串数组", received=formats)
+        return 200, self.app.export_run(params["run_id"], formats=list(formats))
 
     def get_evidence(self, body: Any = None, query: dict[str, Any] | None = None, **params: str) -> tuple[int, Any]:
         return 200, self.app.get_evidence(params["evidence_id"])

@@ -106,6 +106,20 @@ class App:
     def get_events(self, run_id: str, *, cursor: str | None = None, limit: int = 200) -> dict[str, Any]:
         return self.orchestrator.get_events(run_id, cursor=cursor, limit=limit)
 
+    def recover_stuck_runs(self, *, stale_seconds: int | None = None) -> list[dict[str, Any]]:
+        """把长时间停在 running 的 Run 改判为 failed（进程被杀/断电后的兜底）。"""
+        return self.orchestrator.recover_stuck_runs(stale_seconds=stale_seconds)
+
+    def export_run(
+        self,
+        run_id: str,
+        *,
+        formats: list[str] | None = None,
+        out_dir: str | None = None,
+    ) -> dict[str, Any]:
+        """导出 JSON/CSV/HTML 并写 export 事件。"""
+        return self.orchestrator.export_run(run_id, formats=formats, out_dir=out_dir)
+
     def health(self) -> dict[str, Any]:
         backends = pdfpos.available_backends()
         model_health = self.model.health()

@@ -8,11 +8,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from app import API_VERSION
 from app.common.contracts import validate_contract
-from app.common.ids import digest_of, new_id, now_iso
+from app.common.ids import digest_of, new_id, now_iso, parse_iso
 from app.config import Settings
 from app.errors import AppError, validation_error
 from app.ingest.service import DocumentService
@@ -191,7 +192,7 @@ class Orchestrator:
                 error = AppError("INTERNAL_ERROR", "任务执行出现内部错误", details={"error_type": type(error).__name__})
             finished_at = now_iso()
             error = error.with_run(run_id)
-            self._transition(payload, "failed", finished_at=finished_at, error=error.payload(), touch_error=True)
+            # 同样先落盘错误事件与错误文件，最后才让 failed 状态可见
             self.events.append(
                 run_id,
                 event_type="error",
@@ -201,18 +202,19 @@ class Orchestrator:
             )
             self.events.write_error(run_id, error.payload())
             self.events.write_trace(run_id)
+            payload["status"] = "failed"
+            payload["finished_at"] = finished_at
+            payload["error"] = error.payload()
+            self._write_metrics(run_id, payload=payload, result=None, error=error.payload())
+            self._transition(payload, "failed", finished_at=finished_at, error=error.payload(), touch_error=True)
             return self.get_run(run_id)
 
         self._register_reviews(run_id, public_result)
         finished_at = now_iso()
-        self._transition(
-            payload,
-            internal_status,
-            finished_at=finished_at,
-            result=public_result,
-            touch_result=True,
-            result_hash=result_hash,
-        )
+        # 顺序很关键：终态一旦对外可见，客户端就会去读事件与结果。
+        # 因此必须先把结果文件、轨迹文件与“任务结束”事件全部落盘，
+        # 最后才写终态；否则会出现“读到 succeeded 但事件数还差一条”的竞态
+        # （eval/test_c_runtime 的重放用例正是这样发现的）。
         self.events.write_result(run_id, public_result, needs_review=internal_status == "needs_review")
         self.events.write_trace(run_id)
         self.events.append(
@@ -222,7 +224,46 @@ class Orchestrator:
             tool_name="execute_run",
             output_hash=result_hash,
         )
+        payload["status"] = internal_status
+        payload["finished_at"] = finished_at
+        self._write_metrics(run_id, payload=payload, result=public_result, error=None)
+        self._transition(
+            payload,
+            internal_status,
+            finished_at=finished_at,
+            result=public_result,
+            touch_result=True,
+            result_hash=result_hash,
+        )
         return self.get_run(run_id)
+
+    # ------------------------------------------------------------ 运行指标
+    def _write_metrics(
+        self,
+        run_id: str,
+        *,
+        payload: dict[str, Any],
+        result: dict[str, Any] | None,
+        error: dict[str, Any] | None,
+    ) -> None:
+        """写 var/runs/<run_id>/metrics.json（`实施路线与验收清单.md` 第 2 节要求）。
+
+        与 trace.json 一样在终态对外可见之前落盘，保证客户端看到终态时，
+        运行目录里的清单已经完整。
+        """
+        metrics = self.events.build_metrics(
+            run_id=run_id,
+            task_type=payload["task_type"],
+            status=payload["status"],
+            code_version=self.settings.code_version,
+            started_at=payload.get("started_at"),
+            finished_at=payload.get("finished_at"),
+            result=result,
+            error=error,
+            events=self.events.all_events(run_id),
+            chain=self.events.verify_chain(run_id),
+        )
+        self.events.write_metrics(run_id, metrics)
 
     # ------------------------------------------------------------ 查询
     def get_run(self, run_id: str) -> dict[str, Any]:
@@ -369,6 +410,132 @@ class Orchestrator:
             "chain": self.events.verify_chain(run_id),
             "result_original_matches": comparable_stored == comparable_replay if stored_result else None,
             "hash_basis": "result_hash 不含 generated_at（时间戳）；轨迹比对不含工具名，只比对输入/输出哈希",
+        }
+
+    # ------------------------------------------------------------ 导出
+    def export_run(
+        self,
+        run_id: str,
+        *,
+        formats: list[str] | None = None,
+        out_dir: Any | None = None,
+    ) -> dict[str, Any]:
+        """导出结果并写 `export` 事件。
+
+        导出只重排已有结果，不新增数值；事件里保留输出文件哈希，
+        使"这份报告是从哪次运行产出的"可被事后核对。
+        """
+        from app.export.service import run_export
+
+        result = self.get_result(run_id)
+        outcome = run_export(
+            run_id=run_id,
+            result=result,
+            settings=self.settings,
+            formats=formats or ["json", "csv", "html"],
+            out_dir=Path(out_dir) if out_dir else None,
+        )
+        self.events.append(
+            run_id,
+            event_type="export",
+            message=f"导出 {', '.join(outcome.formats)} 到 {Path(outcome.files[0]).parent if outcome.files else '—'}",
+            tool_name="export_run",
+            input_hash=digest_of({"run_id": run_id, "formats": outcome.formats}),
+            output_hash=digest_of(outcome.hashes),
+            payload={"files": [Path(item).name for item in outcome.files], "hashes": outcome.hashes},
+        )
+        if outcome.warnings:
+            self.events.append(
+                run_id,
+                event_type="export",
+                message="导出提示：" + "；".join(outcome.warnings),
+                tool_name="export_run",
+            )
+        # 刷新 metrics.json：export 计数与文件哈希要进运行清单
+        self._metrics_payload(run_id, result=result, status_override=None)
+        return outcome.to_dict()
+
+    def _metrics_payload(
+        self,
+        run_id: str,
+        *,
+        result: dict[str, Any] | None,
+        status_override: str | None,
+    ) -> None:
+        """刷新 metrics.json，使 export 计数与文件哈希进入运行清单。"""
+        row = self.store.get_run_row(run_id)
+        payload = self._load(row["payload"])
+        if status_override:
+            payload["status"] = status_override
+        self._write_metrics(run_id, payload=payload, result=result, error=payload.get("error"))
+
+    # ------------------------------------------------------------ 失联恢复
+    def recover_stuck_runs(self, *, stale_seconds: int | None = None, now: str | None = None) -> list[dict[str, Any]]:
+        """把长时间停留在 running 的 Run 改判为 failed。
+
+        为什么需要：进程被强杀或断电时，`execute_run` 没有机会写终态，Run 会永久
+        停在 `running`，前端轮询到天荒地老、评审看到"卡死"。这里按 `started_at`
+        判断失联并落一个可追溯的终态。
+
+        只处理 `running`：`queued` 尚未开始，`needs_review` 在等人工，都不能自动改判。
+        返回被恢复的 Run 摘要列表；无悬挂时返回空列表。
+        """
+        threshold = self.settings.run_stale_seconds if stale_seconds is None else stale_seconds
+        reference = parse_iso(now) if now else parse_iso(now_iso())
+        recovered: list[dict[str, Any]] = []
+        for row in self.store.list_runs():
+            payload = self._load(row["payload"])
+            if payload.get("status") != "running":
+                continue
+            started = payload.get("started_at") or payload.get("created_at")
+            try:
+                started_at = parse_iso(started)
+            except (ValueError, TypeError):
+                recovered.append(self._abandon_run(payload, reason="started_at 缺失或格式非法，无法确认运行状态"))
+                continue
+            elapsed = (reference - started_at).total_seconds()
+            if elapsed < threshold:
+                continue
+            recovered.append(
+                self._abandon_run(
+                    payload,
+                    reason=f"运行失联：running 已持续 {int(elapsed)} 秒，超过阈值 {threshold} 秒",
+                )
+            )
+        return recovered
+
+    def _abandon_run(self, payload: dict[str, Any], *, reason: str) -> dict[str, Any]:
+        """把悬挂的 Run 改判为 failed，并补齐事件、错误文件、轨迹与指标。"""
+        run_id = payload["run_id"]
+        finished_at = now_iso()
+        error = AppError(
+            "INTERNAL_ERROR",
+            "运行失联，已按失败收口；如输入材料仍有效可重新发起该任务",
+            details={"run_id": run_id, "reason": reason, "recovered_at": finished_at},
+            retryable=True,
+            run_id=run_id,
+        )
+        self.events.append(
+            run_id,
+            event_type="error",
+            message=f"运行失联恢复：{reason}",
+            tool_name="recover_stuck_runs",
+            output_hash=digest_of(error.payload()),
+        )
+        self.events.write_error(run_id, error.payload())
+        self.events.write_trace(run_id)
+        payload["status"] = "failed"
+        payload["finished_at"] = finished_at
+        payload["error"] = error.payload()
+        self._write_metrics(run_id, payload=payload, result=None, error=error.payload())
+        self._transition(payload, "failed", finished_at=finished_at, error=error.payload(), touch_error=True)
+        return {
+            "run_id": run_id,
+            "task_type": payload["task_type"],
+            "previous_status": "running",
+            "status": "failed",
+            "reason": reason,
+            "error_code": error.code,
         }
 
     def cancel_run(self, run_id: str) -> dict[str, Any]:

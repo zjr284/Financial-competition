@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from app.common.contracts import validate_contract
-from app.common.ids import digest_of, now_iso, truncate
+from app.common.ids import digest_of, now_iso, parse_iso, truncate
 from app.config import Settings
 from app.storage.db import Store
 
@@ -229,6 +229,76 @@ class EventLog:
         }
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return path
+
+    def write_metrics(self, run_id: str, metrics: dict[str, Any]) -> Path:
+        """运行指标文件。
+
+        `实施路线与验收清单.md` 第 2 节要求每个运行目录固定存放 metrics.json，
+        作为运行清单的一部分（评审据此判断一次运行是否完整、是否走了兜底路径）。
+        只写计数与状态，不写原文片段，避免公开日志泄露材料。
+        """
+        path = self._run_dir(run_id) / "metrics.json"
+        path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
+        return path
+
+    @staticmethod
+    def build_metrics(
+        *,
+        run_id: str,
+        task_type: str,
+        status: str,
+        code_version: str,
+        started_at: str | None,
+        finished_at: str | None,
+        result: dict[str, Any] | None,
+        error: dict[str, Any] | None,
+        events: list[dict[str, Any]],
+        chain: dict[str, Any],
+    ) -> dict[str, Any]:
+        """汇总一次运行的指标。纯计数，不含任何原文片段。"""
+        counts: dict[str, int] = {}
+        tools: list[str] = []
+        for event in events:
+            counts[event["event_type"]] = counts.get(event["event_type"], 0) + 1
+            if event.get("tool_name"):
+                tools.append(event["tool_name"])
+
+        duration_ms: int | None = None
+        if started_at and finished_at:
+            try:
+                duration_ms = int((parse_iso(finished_at) - parse_iso(started_at)).total_seconds() * 1000)
+            except (ValueError, TypeError):
+                duration_ms = None
+
+        data = (result or {}).get("data") or {}
+        records = data.get("records") if isinstance(data, dict) else None
+        return {
+            "run_id": run_id,
+            "task_type": task_type,
+            "status": status,
+            "code_version": code_version,
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "duration_ms": duration_ms,
+            "terminal": status in {"succeeded", "needs_review", "failed", "cancelled"},
+            "counts": {
+                "events": len(events),
+                "file_access": counts.get("file_access", 0),
+                "tool_call": counts.get("tool_call", 0),
+                "calculation": counts.get("calculation", 0),
+                "model_call": counts.get("model_call", 0),
+                "export": counts.get("export", 0),
+                "error": counts.get("error", 0),
+                "evidence_ids": len((result or {}).get("evidence_ids", [])),
+                "calculations": len((result or {}).get("calculations", [])),
+                "review_items": len((result or {}).get("review_items", [])),
+                "warnings": len((result or {}).get("warnings", [])),
+                "records": len(records) if isinstance(records, list) else 0,
+            },
+            "tools": sorted(set(tools)),
+            "error_code": (error or {}).get("code"),
+            "chain": chain,
+        }
 
     def run_dir(self, run_id: str) -> Path:
         return self._run_dir(run_id)

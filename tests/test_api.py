@@ -308,6 +308,46 @@ def test_replay_endpoint(server: ApiServer, samples_dir: Path) -> None:
     assert report["chain"]["ok"] is True
 
 
+def test_export_endpoint(server: ApiServer, samples_dir: Path) -> None:
+    document = _upload(server, samples_dir, "announcement_pledge_demo.txt")
+    _, run = _call(
+        server,
+        "POST",
+        "/api/v1/runs",
+        body={
+            "api_version": "1.0.0",
+            "task_type": "structured_extraction",
+            "document_ids": [document["document_id"]],
+            "task_input": {"announcement_types": ["pledge"]},
+        },
+    )
+    _wait_terminal(server, run["run_id"])
+    status, outcome = _call(server, "POST", f"/api/v1/runs/{run['run_id']}/export", body={"formats": ["json", "csv"]})
+    assert status == 200
+    assert outcome["formats"] == ["json", "csv"]
+    for path in outcome["files"]:
+        assert Path(path).exists()
+
+
+def test_export_endpoint_rejects_bad_formats(server: ApiServer, samples_dir: Path) -> None:
+    document = _upload(server, samples_dir, "announcement_pledge_demo.txt")
+    _, run = _call(
+        server,
+        "POST",
+        "/api/v1/runs",
+        body={
+            "api_version": "1.0.0",
+            "task_type": "structured_extraction",
+            "document_ids": [document["document_id"]],
+            "task_input": {"announcement_types": ["pledge"]},
+        },
+    )
+    _wait_terminal(server, run["run_id"])
+    status, payload = _call(server, "POST", f"/api/v1/runs/{run['run_id']}/export", body={"formats": "json"})
+    assert status == 400
+    assert payload["code"] == "VALIDATION_ERROR"
+
+
 def test_review_decision_endpoint(server: ApiServer, samples_dir: Path) -> None:
     document = _upload(server, samples_dir, "announcement_pledge_incomplete_demo.txt")
     _, run = server.call(
