@@ -88,7 +88,7 @@ python3 -m app.facts.review_workflow --data-dir var/team-live verify fact_待复
 
 示例命令中的代码、日期和金额仅为输入形状，需以真实文件核对结果替换。`init` 采用独占创建，避免覆盖已有人工清单；`add` 先验证候选清单再原子替换，重复来源会拒绝。`check` 会输出每条事实的 `fact_id → evidence_id → page/bbox` 定位记录。清单默认位于 `var/team-live/reviewed_facts.json`，该运行目录被 Git 忽略；不要把真实全文或私人清单提交到公开仓库。
 
-真实案例首轮预核与官方披露文件 SHA-256 见 [欣旺达案例记录](FINANCE_REAL_CASE_300207.md)。其中财务事实目前均为 `needs_review`，旧诊断 Run 不等于成员 B 的人工签字结果。
+欣旺达真实案例的官方披露文件 SHA-256、18 条成员 B 已确认的财务事实与新 Run 见 [案例记录](FINANCE_REAL_CASE_300207.md)。旧诊断 Run 保留用于复核门禁对照，不作为正式结果。
 
 当前入口是**人工复核事实导入**，不是对真实年报表格的自动提取。A 已能定位 PDF 证据，B 仍需与 C 按真实披露文件完成事实标注和留出集核验。C 的研报核查只接受 verified 且来源解析置信度至少 0.9 的事实；TXT 的近似定位通常达不到此阈值，联调重点应使用有真实文本层的 PDF。A 的当前离线模型只返回字段候选，不会生成 `IndustryData` / `MemoData`，因此产业链和备忘录有归档资料时还需可用的模型适配器。
 
