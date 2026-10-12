@@ -65,6 +65,27 @@ python3 -m unittest discover -s tests -p 'test_role_b_a_integration.py' -v
 
 以上 ID/数值仅说明字段形状，**不能直接复制为真实样本**。B 先在 A 的证据页核对原文、页码、框选、单位、期间、合并/母公司及更正公告，再填写数值；未完成核验的事实标 `needs_review` 并填 `reason`。导入时会重查文件 SHA-256、Fact Schema、证据是否来自该文件，以及 verified 事实的证据文本和解析置信度；不匹配则失败。缺清单或缺事实时任务返回待复核，不会臆造财务值。财报分析会展示待复核事实，但不会拿它们计算同比或比率。
 
+### 真实资料的四步复核流程
+
+1. A 登记并解析正式披露 PDF，保存文件 SHA-256、披露日期和来源地址。选定一家公司及对照年度后，把所有需要的年报、半年报、更正公告先登记齐全；不同版本使用不同 `document_id`。
+2. B 在原 PDF 上核对具体页码、框选、表头年度、单位、报表口径及脚注，再用 `inspect` 找到对应 `evidence_id`。`inspect` 只展示短片段和位置，不自动判定数值。
+3. 用 `init` 创建空白私有清单，再逐条用 `add` 登记事实。金额输入人民币**元**的十进制字符串；只有人工核对完成才加 `--verified`，否则必须提供 `--reason`。同一来源、指标、期间和口径不覆盖旧 Fact。
+4. 用 `check` 核验全部事实的文件哈希、证据归属、Schema 和来源位置。B 再独立复核同比、归母／扣非、单季／累计及更正公告；C 在此基础上进行研报声明双人标注和留出集评测。
+
+```bash
+FINSCOPE_DATA_DIR=var/team-live python3 -m app.cli ingest PATH_TO_ANNUAL_REPORT.pdf --parse
+python3 -m app.facts.review_workflow --data-dir var/team-live inspect doc_实际ID --contains 营业收入
+python3 -m app.facts.review_workflow --data-dir var/team-live init doc_当期ID doc_上年ID
+python3 -m app.facts.review_workflow --data-dir var/team-live add \
+  --document-id doc_当期ID --evidence-id ev_实际ID --company-code 真实六位代码 \
+  --metric revenue --value 120000000 --period-start 2025-01-01 \
+  --period-end 2025-12-31 --period-type cumulative \
+  --statement-scope consolidated --verified
+python3 -m app.facts.review_workflow --data-dir var/team-live check
+```
+
+示例命令中的代码、日期和金额仅为输入形状，需以真实文件核对结果替换。`init` 采用独占创建，避免覆盖已有人工清单；`add` 先验证候选清单再原子替换，重复来源会拒绝。`check` 会输出每条事实的 `fact_id → evidence_id → page/bbox` 定位记录。清单默认位于 `var/team-live/reviewed_facts.json`，该运行目录被 Git 忽略；不要把真实全文或私人清单提交到公开仓库。
+
 当前入口是**人工复核事实导入**，不是对真实年报表格的自动提取。A 已能定位 PDF 证据，B 仍需与 C 按真实披露文件完成事实标注和留出集核验。C 的研报核查只接受 verified 且来源解析置信度至少 0.9 的事实；TXT 的近似定位通常达不到此阈值，联调重点应使用有真实文本层的 PDF。A 的当前离线模型只返回字段候选，不会生成 `IndustryData` / `MemoData`，因此产业链和备忘录有归档资料时还需可用的模型适配器。
 
 已合并代码可用合成 PDF 验证 `上传 → 解析 → 证据 → 复核事实 → financial_analysis → 同比 20% → needs_review → 离线重放哈希与轨迹一致`；这只证明接口贯通，不是年报准确率。C 的 `research_verification` 对缺少足够可信来源的声明返回 `needs_review`。
