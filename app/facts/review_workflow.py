@@ -16,12 +16,15 @@ from typing import Any
 
 from app.facts.catalog import METRICS, validate_fact
 from app.facts.reviewed_store import ReviewedFactPort
+from app.common.ids import now_iso
 
 
 def _open_app(data_dir: Path | None) -> Any:
+    import app.bootstrap as bootstrap
     from app.config import Settings
     from app.container import build_app
 
+    bootstrap.bootstrap()
     return build_app(Settings(data_dir=data_dir.resolve())) if data_dir else build_app()
 
 
@@ -53,6 +56,33 @@ def init_manifest(app: Any, path: Path, document_ids: list[str]) -> dict[str, An
     payload = {"version": 1, "documents": bundles}
     _write_new(path, payload)
     return payload
+
+
+def attach_document(app: Any, path: Path, document_id: str) -> dict[str, Any]:
+    """Add a registered document without discarding previously reviewed facts."""
+    payload = _load_manifest(path)
+    if any(bundle.get("document_id") == document_id for bundle in payload["documents"]):
+        raise ValueError("文档已在事实清单中登记")
+    document = app.get_document(document_id)
+    payload["documents"].append({
+        "document_id": document_id, "sha256": document["sha256"], "facts": [],
+    })
+    _write_validated(app, path, payload)
+    return {"document_id": document_id, "sha256": document["sha256"], "facts": []}
+
+
+def _write_validated(app: Any, path: Path, payload: dict[str, Any]) -> None:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, prefix=".facts-", suffix=".json", delete=False) as stream:
+        candidate_path = Path(stream.name)
+        json.dump(payload, stream, ensure_ascii=False, indent=2)
+        stream.write("\n")
+    try:
+        ReviewedFactPort(candidate_path, app.documents, app.parse).extract_facts(
+            [entry["document_id"] for entry in payload["documents"]], list(METRICS)
+        )
+        os.replace(candidate_path, path)
+    finally:
+        candidate_path.unlink(missing_ok=True)
 
 
 def inspect_evidence(app: Any, document_id: str, *, contains: str = "", page: int | None = None, limit: int = 30) -> list[dict[str, Any]]:
@@ -109,18 +139,32 @@ def add_fact(app: Any, path: Path, *, document_id: str, evidence_id: str,
         raise ValueError("该来源、期间和口径的事实已登记；请检查旧记录，不自动覆盖")
     bundle["facts"].append(fact)
     # Validate the complete candidate before replacing the private manifest.
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, prefix=".facts-", suffix=".json", delete=False) as stream:
-        candidate_path = Path(stream.name)
-        json.dump(payload, stream, ensure_ascii=False, indent=2)
-        stream.write("\n")
-    try:
-        ReviewedFactPort(candidate_path, app.documents, app.parse).extract_facts(
-            [entry["document_id"] for entry in payload["documents"]], list(METRICS)
-        )
-        os.replace(candidate_path, path)
-    finally:
-        candidate_path.unlink(missing_ok=True)
+    _write_validated(app, path, payload)
     return fact
+
+
+def verify_fact(app: Any, path: Path, fact_id: str, reviewer: str) -> dict[str, Any]:
+    """Record a human review decision after the reviewer checks the original PDF."""
+    if not reviewer.strip():
+        raise ValueError("复核人不能为空")
+    payload = _load_manifest(path)
+    matches = [fact for bundle in payload["documents"] for fact in bundle["facts"]
+               if fact.get("fact_id") == fact_id]
+    if len(matches) != 1:
+        raise ValueError("事实 ID 必须在清单中恰好出现一次")
+    fact = matches[0]
+    if fact["review_status"] != "needs_review":
+        raise ValueError("仅待复核事实可转为 verified")
+    if fact["value"] is None:
+        raise ValueError("缺失数值不能标为 verified")
+    fact["review_status"] = "verified"
+    fact["reason"] = None
+    payload.setdefault("review_history", []).append({
+        "fact_id": fact_id, "reviewer": reviewer.strip(), "reviewed_at": now_iso(),
+        "decision": "verified", "evidence_ids": list(fact["evidence_ids"]),
+    })
+    _write_validated(app, path, payload)
+    return {"fact_id": fact_id, "review_status": "verified", "reviewer": reviewer.strip()}
 
 
 def check_manifest(app: Any, path: Path) -> dict[str, Any]:
@@ -146,6 +190,8 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init", help="为已登记文档创建空白事实清单")
     init.add_argument("document_ids", nargs="+")
+    attach = sub.add_parser("attach", help="向现有事实清单添加已登记文档")
+    attach.add_argument("document_id")
     inspect = sub.add_parser("inspect", help="查找已解析文档的证据与位置")
     inspect.add_argument("document_id")
     inspect.add_argument("--contains", default="")
@@ -158,6 +204,9 @@ def main() -> None:
     add.add_argument("--restated", action="store_true")
     add.add_argument("--verified", action="store_true", help="仅人工核对原件与口径后使用")
     add.add_argument("--reason", help="待复核原因")
+    verify = sub.add_parser("verify", help="人工核对原件后确认已有待复核事实")
+    verify.add_argument("fact_id")
+    verify.add_argument("--reviewer", required=True, help="实际复核人姓名或团队内代号")
     sub.add_parser("check", help="校验事实、文件哈希与证据位置")
     args = parser.parse_args()
     app = _open_app(args.data_dir)
@@ -165,6 +214,8 @@ def main() -> None:
         path = _manifest_path(app, args.manifest)
         if args.command == "init":
             result = init_manifest(app, path, args.document_ids)
+        elif args.command == "attach":
+            result = attach_document(app, path, args.document_id)
         elif args.command == "inspect":
             if args.limit < 1:
                 parser.error("--limit 必须大于 0")
@@ -174,6 +225,8 @@ def main() -> None:
                       for name in ("document-id", "evidence-id", "company-code", "metric", "period-start", "period-end", "period-type", "statement-scope")}
             result = add_fact(app, path, **values, value=args.value, restated=args.restated,
                               verified=args.verified, reason=args.reason)
+        elif args.command == "verify":
+            result = verify_fact(app, path, args.fact_id, args.reviewer)
         else:
             result = check_manifest(app, path)
         print(json.dumps(result, ensure_ascii=False, indent=2))

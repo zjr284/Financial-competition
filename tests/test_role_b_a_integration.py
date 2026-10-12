@@ -14,7 +14,7 @@ class RoleBAIntegrationTests(unittest.TestCase):
     def test_pdf_evidence_financial_run_and_replay(self):
         from app.config import Settings
         from app.container import build_app
-        from app.facts.review_workflow import add_fact, check_manifest, init_manifest, inspect_evidence
+        from app.facts.review_workflow import add_fact, attach_document, check_manifest, init_manifest, inspect_evidence
         from app.tasks.a_bridge import install_role_b
         from tools import make_sample_pdf
 
@@ -49,6 +49,12 @@ class RoleBAIntegrationTests(unittest.TestCase):
                              period_end=f"{year}-12-31", period_type="cumulative",
                              statement_scope="consolidated", verified=True)
                 self.assertEqual(check_manifest(app, manifest_path)["verified"], 2)
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                second = app.upload_document("second.pdf", payload + b"\n% second document\n")
+                attach_document(app, manifest_path, second["document_id"])
+                self.assertEqual(check_manifest(app, manifest_path)["verified"], 2)
+                with self.assertRaisesRegex(ValueError, "已在事实清单"):
+                    attach_document(app, manifest_path, second["document_id"])
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 with self.assertRaisesRegex(ValueError, "已登记"):
                     add_fact(app, manifest_path, document_id=doc["document_id"],
