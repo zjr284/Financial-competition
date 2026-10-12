@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node tests/browser.mjs",
+    "test:live": "node tests/live.mjs",
+    "record:live": "node tests/live.mjs --record",
     "record": "node tests/record.mjs"
   },
   "dependencies": {

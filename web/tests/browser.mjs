@@ -127,8 +127,18 @@ try {
       createRequest = route.request().postDataJSON();
       body = { run_id: result.run_id, status: "queued" };
     } else if (path.endsWith("/result")) body = result;
-    else if (path.endsWith("/events")) body = { events: [], next_cursor: null };
-    else if (path.includes("/runs/"))
+    else if (path.endsWith("/events")) {
+      const cursor = new URL(route.request().url()).searchParams.get("cursor");
+      body = cursor
+        ? {
+            events: [
+              { event_id: "event_page_1" },
+              { event_id: "event_page_2" },
+            ],
+            next_cursor: null,
+          }
+        : { events: [{ event_id: "event_page_1" }], next_cursor: "cursor/+ 2" };
+    } else if (path.includes("/runs/"))
       body = {
         run_id: result.run_id,
         status: ++runReads === 1 ? "running" : "needs_review",
@@ -177,6 +187,15 @@ try {
   await page.locator("#status").filter({ hasText: "待复核" }).waitFor();
   assert.equal(createRequest.api_version, "1.0.0");
   assert.equal(runReads, 2);
+  await page.getByText("运行事件与版本", { exact: true }).click();
+  await page.getByRole("button", { name: "加载更多运行事件" }).click();
+  await page.locator("#events").filter({ hasText: "event_page_2" }).waitFor();
+  assert.equal(
+    JSON.parse(await page.locator("#events").textContent()).event_page.events
+      .length,
+    2,
+  );
+  assert.equal(await page.locator("#more-events").isVisible(), false);
   await page
     .getByRole("button", { name: "来源 1", exact: true })
     .first()
