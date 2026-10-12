@@ -1,0 +1,215 @@
+{
+  "api_version": "1.0.0",
+  "run_id": "run_demo_ttm_pe",
+  "task_type": "valuation",
+  "status": "needs_review",
+  "generated_at": "2026-10-12T12:00:00+08:00",
+  "input_document_ids": [
+    "doc_demo_annual",
+    "doc_demo_current",
+    "doc_demo_prior",
+    "doc_demo_market"
+  ],
+  "data": {
+    "method": "relative_pe",
+    "as_of_date": "2026-09-30",
+    "assumptions": [],
+    "valuation_range": {
+      "low": null,
+      "base": null,
+      "high": null,
+      "unit": "CNY",
+      "reason": "Missing recent target TTM parent net profit"
+    },
+    "sensitivity": []
+  },
+  "evidence_ids": [
+    "ev_demo_999991_annual",
+    "ev_demo_999991_current",
+    "ev_demo_999991_prior",
+    "ev_demo_999992_annual",
+    "ev_demo_999992_current",
+    "ev_demo_999992_prior",
+    "ev_demo_999993_annual",
+    "ev_demo_999993_current",
+    "ev_demo_999993_prior",
+    "ev_demo_999999_annual",
+    "ev_demo_999999_current",
+    "ev_demo_999999_prior"
+  ],
+  "calculations": [
+    {
+      "calculation_id": "calc_fa8a06b8a063d8560fa3",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999991_annual",
+        "fact_demo_999991_current",
+        "fact_demo_999991_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999991",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": null,
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "needs_review",
+      "reason": "Unsupported formula_code: ttm_from_ytd"
+    },
+    {
+      "calculation_id": "calc_47b0881e47596e739b54",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999992_annual",
+        "fact_demo_999992_current",
+        "fact_demo_999992_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999992",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": null,
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "needs_review",
+      "reason": "Unsupported formula_code: ttm_from_ytd"
+    },
+    {
+      "calculation_id": "calc_c98d715dec75d79fdb00",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999993_annual",
+        "fact_demo_999993_current",
+        "fact_demo_999993_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999993",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": null,
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "needs_review",
+      "reason": "Unsupported formula_code: ttm_from_ytd"
+    },
+    {
+      "calculation_id": "calc_d740849f156d2600095a",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999999_annual",
+        "fact_demo_999999_current",
+        "fact_demo_999999_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999999",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": null,
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "needs_review",
+      "reason": "Unsupported formula_code: ttm_from_ytd"
+    }
+  ],
+  "review_items": [
+    {
+      "review_id": "review_b5d3e42dca107db2fbb2",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "Missing recent target TTM parent net profit",
+      "status": "pending",
+      "evidence_ids": []
+    },
+    {
+      "review_id": "review_ef0a6e07c5b2f61a7f20",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "TTM 999991: Unsupported formula_code: ttm_from_ytd",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999991_annual",
+        "ev_demo_999991_current",
+        "ev_demo_999991_prior"
+      ]
+    },
+    {
+      "review_id": "review_654b97b03695892c0843",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "TTM 999992: Unsupported formula_code: ttm_from_ytd",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999992_annual",
+        "ev_demo_999992_current",
+        "ev_demo_999992_prior"
+      ]
+    },
+    {
+      "review_id": "review_930d70ec91c13ccd3207",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "TTM 999993: Unsupported formula_code: ttm_from_ytd",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999993_annual",
+        "ev_demo_999993_current",
+        "ev_demo_999993_prior"
+      ]
+    },
+    {
+      "review_id": "review_be84aa432c71d455fd26",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "TTM 999999: Unsupported formula_code: ttm_from_ytd",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999999_annual",
+        "ev_demo_999999_current",
+        "ev_demo_999999_prior"
+      ]
+    }
+  ],
+  "warnings": [
+    "接口演示样例：全部数据虚构；DemoCalculator 仅演示拟议工具行为，生产 A 工具尚未接入。",
+    "Missing recent target TTM parent net profit",
+    "TTM 999991: Unsupported formula_code: ttm_from_ytd",
+    "TTM 999992: Unsupported formula_code: ttm_from_ytd",
+    "TTM 999993: Unsupported formula_code: ttm_from_ytd",
+    "TTM 999999: Unsupported formula_code: ttm_from_ytd"
+  ]
+}

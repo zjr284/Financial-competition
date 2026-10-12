@@ -1,0 +1,524 @@
+{
+  "label": "接口演示样例（全部虚构）",
+  "facts": [
+    {
+      "fact_id": "fact_demo_999999_annual",
+      "company_code": "999999",
+      "metric": "net_profit_parent",
+      "value": "100",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999999_annual"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999991_annual",
+      "company_code": "999991",
+      "metric": "net_profit_parent",
+      "value": "80",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999991_annual"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999992_annual",
+      "company_code": "999992",
+      "metric": "net_profit_parent",
+      "value": "100",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999992_annual"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999993_annual",
+      "company_code": "999993",
+      "metric": "net_profit_parent",
+      "value": "160",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-12-31",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999993_annual"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999999_current",
+      "company_code": "999999",
+      "metric": "net_profit_parent",
+      "value": "60",
+      "unit": "CNY",
+      "period_start": "2026-01-01",
+      "period_end": "2026-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999999_current"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999991_current",
+      "company_code": "999991",
+      "metric": "net_profit_parent",
+      "value": "50",
+      "unit": "CNY",
+      "period_start": "2026-01-01",
+      "period_end": "2026-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999991_current"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999992_current",
+      "company_code": "999992",
+      "metric": "net_profit_parent",
+      "value": "70",
+      "unit": "CNY",
+      "period_start": "2026-01-01",
+      "period_end": "2026-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999992_current"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999993_current",
+      "company_code": "999993",
+      "metric": "net_profit_parent",
+      "value": "80",
+      "unit": "CNY",
+      "period_start": "2026-01-01",
+      "period_end": "2026-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999993_current"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999999_prior",
+      "company_code": "999999",
+      "metric": "net_profit_parent",
+      "value": "40",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999999_prior"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999991_prior",
+      "company_code": "999991",
+      "metric": "net_profit_parent",
+      "value": "30",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999991_prior"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999992_prior",
+      "company_code": "999992",
+      "metric": "net_profit_parent",
+      "value": "50",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999992_prior"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999993_prior",
+      "company_code": "999993",
+      "metric": "net_profit_parent",
+      "value": "40",
+      "unit": "CNY",
+      "period_start": "2025-01-01",
+      "period_end": "2025-06-30",
+      "period_type": "cumulative",
+      "statement_scope": "consolidated",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999993_prior"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999991_market",
+      "company_code": "999991",
+      "metric": "market_cap",
+      "value": "1000",
+      "unit": "CNY",
+      "period_start": "2026-09-30",
+      "period_end": "2026-09-30",
+      "period_type": "instant",
+      "statement_scope": "not_applicable",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999991_market"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999992_market",
+      "company_code": "999992",
+      "metric": "market_cap",
+      "value": "1500",
+      "unit": "CNY",
+      "period_start": "2026-09-30",
+      "period_end": "2026-09-30",
+      "period_type": "instant",
+      "statement_scope": "not_applicable",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999992_market"
+      ],
+      "review_status": "verified",
+      "reason": null
+    },
+    {
+      "fact_id": "fact_demo_999993_market",
+      "company_code": "999993",
+      "metric": "market_cap",
+      "value": "4000",
+      "unit": "CNY",
+      "period_start": "2026-09-30",
+      "period_end": "2026-09-30",
+      "period_type": "instant",
+      "statement_scope": "not_applicable",
+      "restated": false,
+      "evidence_ids": [
+        "ev_demo_999993_market"
+      ],
+      "review_status": "verified",
+      "reason": null
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_demo_999999_annual",
+      "document_id": "doc_demo_annual",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999999 net_profit_parent 2025-01-01~2025-12-31 100 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999991_annual",
+      "document_id": "doc_demo_annual",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999991 net_profit_parent 2025-01-01~2025-12-31 80 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999992_annual",
+      "document_id": "doc_demo_annual",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999992 net_profit_parent 2025-01-01~2025-12-31 100 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999993_annual",
+      "document_id": "doc_demo_annual",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999993 net_profit_parent 2025-01-01~2025-12-31 160 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999999_current",
+      "document_id": "doc_demo_current",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999999 net_profit_parent 2026-01-01~2026-06-30 60 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999991_current",
+      "document_id": "doc_demo_current",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999991 net_profit_parent 2026-01-01~2026-06-30 50 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999992_current",
+      "document_id": "doc_demo_current",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999992 net_profit_parent 2026-01-01~2026-06-30 70 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999993_current",
+      "document_id": "doc_demo_current",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999993 net_profit_parent 2026-01-01~2026-06-30 80 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999999_prior",
+      "document_id": "doc_demo_prior",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999999 net_profit_parent 2025-01-01~2025-06-30 40 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999991_prior",
+      "document_id": "doc_demo_prior",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999991 net_profit_parent 2025-01-01~2025-06-30 30 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999992_prior",
+      "document_id": "doc_demo_prior",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999992 net_profit_parent 2025-01-01~2025-06-30 50 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999993_prior",
+      "document_id": "doc_demo_prior",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999993 net_profit_parent 2025-01-01~2025-06-30 40 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999991_market",
+      "document_id": "doc_demo_market",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999991 market_cap 2026-09-30~2026-09-30 1000 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999992_market",
+      "document_id": "doc_demo_market",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999992 market_cap 2026-09-30~2026-09-30 1500 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    },
+    {
+      "evidence_id": "ev_demo_999993_market",
+      "document_id": "doc_demo_market",
+      "page": 1,
+      "bbox": [
+        0,
+        0,
+        1000,
+        1000
+      ],
+      "text": "999993 market_cap 2026-09-30~2026-09-30 4000 CNY",
+      "extraction_method": "manual",
+      "confidence": 1.0
+    }
+  ],
+  "documents": [
+    {
+      "document_id": "doc_demo_annual",
+      "filename": "annual.txt",
+      "media_type": "text/plain",
+      "sha256": "856e9fc56c240acc05a3e7436f4e457187b637cad2956c69817ad748183aca84",
+      "source_url": null,
+      "disclosure_date": "2026-04-01",
+      "ingested_at": "2026-10-12T12:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    },
+    {
+      "document_id": "doc_demo_current",
+      "filename": "current.txt",
+      "media_type": "text/plain",
+      "sha256": "c90fd7e6cc1cc389b9c07e9559e593ab65dde24cd639a687c50821e145fc9942",
+      "source_url": null,
+      "disclosure_date": "2026-08-20",
+      "ingested_at": "2026-10-12T12:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    },
+    {
+      "document_id": "doc_demo_prior",
+      "filename": "prior.txt",
+      "media_type": "text/plain",
+      "sha256": "f0d3c41f79e8856161503d92d2efde0bbca6cfc5c8b3103a1e859e2b02a50108",
+      "source_url": null,
+      "disclosure_date": "2026-08-20",
+      "ingested_at": "2026-10-12T12:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    },
+    {
+      "document_id": "doc_demo_market",
+      "filename": "market.txt",
+      "media_type": "text/plain",
+      "sha256": "b315b53b1599ab1c28855dd1c82a8ab5a216ab3c8a4a0092a4190a9af36101ba",
+      "source_url": null,
+      "disclosure_date": "2026-09-30",
+      "ingested_at": "2026-10-12T12:00:00+08:00",
+      "page_count": 1,
+      "parse_status": "parsed"
+    }
+  ],
+  "task_input": {
+    "company_code": "999999",
+    "method": "relative_pe",
+    "as_of_date": "2026-09-30",
+    "statement_scope": "consolidated"
+  }
+}

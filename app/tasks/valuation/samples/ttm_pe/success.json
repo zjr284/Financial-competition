@@ -1,0 +1,543 @@
+{
+  "api_version": "1.0.0",
+  "run_id": "run_demo_ttm_pe",
+  "task_type": "valuation",
+  "status": "needs_review",
+  "generated_at": "2026-10-12T12:00:00+08:00",
+  "input_document_ids": [
+    "doc_demo_annual",
+    "doc_demo_current",
+    "doc_demo_prior",
+    "doc_demo_market"
+  ],
+  "data": {
+    "method": "relative_pe",
+    "as_of_date": "2026-09-30",
+    "assumptions": [
+      {
+        "text": "以 3 家可比公司同日市值和近期滚动净利润计算 PE；取最小值、中位数和最大值形成情景。",
+        "kind": "calculation",
+        "evidence_ids": [
+          "ev_demo_999999_annual",
+          "ev_demo_999999_current",
+          "ev_demo_999999_prior",
+          "ev_demo_999991_market",
+          "ev_demo_999991_annual",
+          "ev_demo_999991_current",
+          "ev_demo_999991_prior",
+          "ev_demo_999992_market",
+          "ev_demo_999992_annual",
+          "ev_demo_999992_current",
+          "ev_demo_999992_prior",
+          "ev_demo_999993_market",
+          "ev_demo_999993_annual",
+          "ev_demo_999993_current",
+          "ev_demo_999993_prior"
+        ],
+        "assumptions": [
+          "可比公司由输入资料包确定",
+          "盈利口径保持一致"
+        ],
+        "limitations": [
+          "极端样本可能扩大区间；需人工审查可比性"
+        ]
+      }
+    ],
+    "valuation_range": {
+      "low": "1200",
+      "base": "1500",
+      "high": "2400",
+      "unit": "CNY",
+      "reason": null
+    },
+    "sensitivity": [
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "10",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "-10",
+        "valuation": "1080",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "10",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "0",
+        "valuation": "1200",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "10",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "10",
+        "valuation": "1320",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "12.5",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "-10",
+        "valuation": "1350",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "12.5",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "0",
+        "valuation": "1500",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "12.5",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "10",
+        "valuation": "1650",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "20",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "-10",
+        "valuation": "2160",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "20",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "0",
+        "valuation": "2400",
+        "unit": "CNY"
+      },
+      {
+        "parameter_a": "peer_pe_multiple",
+        "value_a": "20",
+        "parameter_b": "earnings_shock_percent",
+        "value_b": "10",
+        "valuation": "2640",
+        "unit": "CNY"
+      }
+    ]
+  },
+  "evidence_ids": [
+    "ev_demo_999999_annual",
+    "ev_demo_999999_current",
+    "ev_demo_999999_prior",
+    "ev_demo_999991_market",
+    "ev_demo_999991_annual",
+    "ev_demo_999991_current",
+    "ev_demo_999991_prior",
+    "ev_demo_999992_market",
+    "ev_demo_999992_annual",
+    "ev_demo_999992_current",
+    "ev_demo_999992_prior",
+    "ev_demo_999993_market",
+    "ev_demo_999993_annual",
+    "ev_demo_999993_current",
+    "ev_demo_999993_prior"
+  ],
+  "calculations": [
+    {
+      "calculation_id": "calc_fa8a06b8a063d8560fa3",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999991_annual",
+        "fact_demo_999991_current",
+        "fact_demo_999991_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999991",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": "100",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_47b0881e47596e739b54",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999992_annual",
+        "fact_demo_999992_current",
+        "fact_demo_999992_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999992",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": "120",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_c98d715dec75d79fdb00",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999993_annual",
+        "fact_demo_999993_current",
+        "fact_demo_999993_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999993",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": "200",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_d740849f156d2600095a",
+      "formula_code": "ttm_from_ytd",
+      "input_fact_ids": [
+        "fact_demo_999999_annual",
+        "fact_demo_999999_current",
+        "fact_demo_999999_prior"
+      ],
+      "input_calculation_ids": [],
+      "parameters": {
+        "company_code": "999999",
+        "metric": "net_profit_parent_ttm",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "annual_period_start": "2025-01-01",
+        "annual_period_end": "2025-12-31",
+        "current_ytd_period_start": "2026-01-01",
+        "current_ytd_period_end": "2026-06-30",
+        "prior_ytd_period_start": "2025-01-01",
+        "prior_ytd_period_end": "2025-06-30"
+      },
+      "value": "120",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_85dcc74547d4073f6d2c",
+      "formula_code": "pe",
+      "input_fact_ids": [
+        "fact_demo_999991_market"
+      ],
+      "input_calculation_ids": [
+        "calc_fa8a06b8a063d8560fa3"
+      ],
+      "parameters": {
+        "as_of_date": "2026-09-30"
+      },
+      "value": "10",
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_a859a4f21d288f98c3ff",
+      "formula_code": "pe",
+      "input_fact_ids": [
+        "fact_demo_999992_market"
+      ],
+      "input_calculation_ids": [
+        "calc_47b0881e47596e739b54"
+      ],
+      "parameters": {
+        "as_of_date": "2026-09-30"
+      },
+      "value": "12.5",
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_7759eed9b624fa0e61c0",
+      "formula_code": "pe",
+      "input_fact_ids": [
+        "fact_demo_999993_market"
+      ],
+      "input_calculation_ids": [
+        "calc_c98d715dec75d79fdb00"
+      ],
+      "parameters": {
+        "as_of_date": "2026-09-30"
+      },
+      "value": "20",
+      "unit": "times",
+      "rounding_rule": "ROUND_HALF_UP:0.0001",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_3dfe49767b3f434d43b8",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "10"
+      },
+      "value": "1200",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_caf9d344c7664019e120",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "12.5"
+      },
+      "value": "1500",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_8e3460189b710d2c8ac0",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "20"
+      },
+      "value": "2400",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_135a95d9e7526f4afdef",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "10",
+        "earnings_shock_percent": "-10"
+      },
+      "value": "1080",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_2f457c0805e19194da31",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "10",
+        "earnings_shock_percent": "0"
+      },
+      "value": "1200",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_61cf623e3259aa36f32f",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "10",
+        "earnings_shock_percent": "10"
+      },
+      "value": "1320",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_08c26707ca457212a954",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "12.5",
+        "earnings_shock_percent": "-10"
+      },
+      "value": "1350",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_e9a294aa94cc49847b03",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "12.5",
+        "earnings_shock_percent": "0"
+      },
+      "value": "1500",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_ac448c63e24c0f2576f6",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "12.5",
+        "earnings_shock_percent": "10"
+      },
+      "value": "1650",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_3a25f2f2178ae06ed975",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "20",
+        "earnings_shock_percent": "-10"
+      },
+      "value": "2160",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_addc3e1499ea545a4e4a",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "20",
+        "earnings_shock_percent": "0"
+      },
+      "value": "2400",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    },
+    {
+      "calculation_id": "calc_258d85c6df2c2a3e34ee",
+      "formula_code": "relative_equity_value",
+      "input_fact_ids": [],
+      "input_calculation_ids": [
+        "calc_d740849f156d2600095a"
+      ],
+      "parameters": {
+        "multiple": "20",
+        "earnings_shock_percent": "10"
+      },
+      "value": "2640",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
+    }
+  ],
+  "review_items": [
+    {
+      "review_id": "review_dd5c497389c01ea01938",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "Review peer comparability and market snapshot date",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999999_annual",
+        "ev_demo_999999_current",
+        "ev_demo_999999_prior",
+        "ev_demo_999991_market",
+        "ev_demo_999991_annual",
+        "ev_demo_999991_current",
+        "ev_demo_999991_prior",
+        "ev_demo_999992_market",
+        "ev_demo_999992_annual",
+        "ev_demo_999992_current",
+        "ev_demo_999992_prior",
+        "ev_demo_999993_market",
+        "ev_demo_999993_annual",
+        "ev_demo_999993_current",
+        "ev_demo_999993_prior"
+      ]
+    }
+  ],
+  "warnings": [
+    "接口演示样例：全部数据虚构；DemoCalculator 仅演示拟议工具行为，生产 A 工具尚未接入。",
+    "区间为企业股权总价值（人民币元），不是每股价格或投资建议"
+  ]
+}

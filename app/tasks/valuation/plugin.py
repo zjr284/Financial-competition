@@ -17,6 +17,7 @@ from app.tasks._finance_common import (
     unique,
 )
 from contracts.ports import TaskContext
+from .ttm_inputs import prepare_ttm_inputs
 
 
 DCF_REQUIRED = (
@@ -55,7 +56,7 @@ class ValuationTask:
         method = task_input["method"]
         if method not in {"relative_pe", "dcf"}:
             raise ValueError(f"Unsupported valuation method: {method}")
-        metrics = ["market_cap", "net_profit_parent_ttm"] if method == "relative_pe" else ["revenue"]
+        metrics = ["market_cap", "net_profit_parent_ttm", "net_profit_parent"] if method == "relative_pe" else ["revenue"]
         facts = context.evidence.extract_facts(list(context.document_ids), metrics)
         available, excluded = self._available_facts(context, facts, task_input["as_of_date"])
         payload = (self._relative_pe(context, task_input, available) if method == "relative_pe"
@@ -134,7 +135,31 @@ class ValuationTask:
         scope = task_input["statement_scope"]
         target = task_input["company_code"]
         prime_calculator(context, facts)
+        facts, origins, upstream, issues = prepare_ttm_inputs(context, facts, scope, as_of)
         index = FactIndex(facts)
+
+        computed: list[dict[str, Any]] = []
+        source_facts = {f["fact_id"]: f for f in facts}
+
+        def profit_inputs(profit: dict[str, Any]) -> tuple[list[str], list[str]]:
+            origin = origins.get(profit["fact_id"])
+            return ([], [origin]) if origin else ([profit["fact_id"]], [])
+
+        def finish(payload: dict[str, Any]) -> dict[str, Any]:
+            payload["calculations"] = list({c["calculation_id"]: c for c in upstream + computed + payload["calculations"]}.values())
+            payload["evidence_ids"] = unique(payload["evidence_ids"] + [
+                evidence_id for calc in upstream for fid in calc["input_fact_ids"]
+                for evidence_id in source_facts[fid]["evidence_ids"]
+            ])
+            for reason, refs in issues:
+                payload["warnings"].append(reason)
+                payload["review_items"].append(review_item(context.run_id, reason, refs))
+                payload["evidence_ids"] = unique(payload["evidence_ids"] + refs)
+            return payload
+
+        def empty(reason: str, refs: list[str] | None = None) -> dict[str, Any]:
+            return finish(self._empty(context, task_input, reason, refs))
+
         relevant = [
             fact for fact in index.all()
             if fact["metric"] == "net_profit_parent_ttm"
@@ -154,15 +179,15 @@ class ValuationTask:
                 )
             except FactConflict:
                 if company == target:
-                    return self._empty(context, task_input, "Conflicting target TTM earnings")
+                    return empty("Conflicting target TTM earnings")
                 continue
             if selected is not None:
                 by_company[company] = selected
         target_profit = by_company.get(target)
         if target_profit is None or target_profit["review_status"] != "verified" or decimal_value(target_profit["value"]) is None:
-            return self._empty(context, task_input, "Missing recent target TTM parent net profit")
+            return empty("Missing recent target TTM parent net profit")
         if decimal_value(target_profit["value"]) <= 0:
-            return self._empty(context, task_input, "Target TTM earnings are non-positive", target_profit["evidence_ids"])
+            return empty("Target TTM earnings are non-positive", target_profit["evidence_ids"])
 
         peer_inputs: list[tuple[dict[str, Any], dict[str, Any]]] = []
         for company, profit in by_company.items():
@@ -177,25 +202,26 @@ class ValuationTask:
             if market is not None and market["review_status"] == "verified":
                 peer_inputs.append((market, profit))
         if len(peer_inputs) < 3:
-            return self._empty(
-                context, task_input,
+            return empty(
                 "At least three peers with same-date market caps and TTM profits matching the target period are required",
                 target_profit["evidence_ids"],
             )
         chosen = [target_profit] + [item for pair in peer_inputs for item in pair]
         evidence_ids = source_ids_for_facts(context, chosen)
-        calculations: list[dict[str, Any]] = []
+        calculations: list[dict[str, Any]] = computed
         multiples: list[Decimal] = []
         for market, profit in peer_inputs:
+            profit_fact_ids, profit_calc_ids = profit_inputs(profit)
             calc = context.calculations.calculate(
-                "pe", [market["fact_id"], profit["fact_id"]], [], {"as_of_date": as_of}
+                "pe", [market["fact_id"]] + profit_fact_ids, profit_calc_ids,
+                {"as_of_date": as_of}
             )
             calculations.append(calc)
             record_calculation(context, calc)
             if calc["status"] == "verified":
                 multiples.append(Decimal(calc["value"]))
         if len(multiples) < 3:
-            return self._empty(context, task_input, "Fewer than three valid positive peer PE values", evidence_ids)
+            return empty("Fewer than three valid positive peer PE values", evidence_ids)
         multiples.sort()
         low_multiple = multiples[0]
         high_multiple = multiples[-1]
@@ -205,23 +231,24 @@ class ValuationTask:
             else (multiples[middle - 1] + multiples[middle]) / 2
         )
         values: dict[str, str] = {}
+        target_fact_ids, target_calc_ids = profit_inputs(target_profit)
         for name, multiple in (
             ("low", low_multiple), ("base", base_multiple), ("high", high_multiple)
         ):
             calc = context.calculations.calculate(
-                "relative_equity_value", [target_profit["fact_id"]], [],
+                "relative_equity_value", target_fact_ids, target_calc_ids,
                 {"multiple": _number(multiple)},
             )
             calculations.append(calc)
             record_calculation(context, calc)
             if calc["status"] != "verified":
-                return self._empty(context, task_input, calc["reason"], evidence_ids)
+                return empty(calc["reason"], evidence_ids)
             values[name] = calc["value"]
         sensitivity: list[dict[str, Any]] = []
         for multiple in (low_multiple, base_multiple, high_multiple):
             for shock in (Decimal("-10"), Decimal("0"), Decimal("10")):
                 calc = context.calculations.calculate(
-                    "relative_equity_value", [target_profit["fact_id"]], [],
+                    "relative_equity_value", target_fact_ids, target_calc_ids,
                     {"multiple": _number(multiple), "earnings_shock_percent": _number(shock)},
                 )
                 calculations.append(calc)
@@ -234,7 +261,7 @@ class ValuationTask:
                     "valuation": calc["value"],
                     "unit": "CNY",
                 })
-        return {
+        return finish({
             "data": {
                 "method": "relative_pe",
                 "as_of_date": as_of,
@@ -252,7 +279,7 @@ class ValuationTask:
             "calculations": list({item["calculation_id"]: item for item in calculations}.values()),
             "review_items": [review_item(context.run_id, "Review peer comparability and market snapshot date", evidence_ids)],
             "warnings": ["区间为企业股权总价值（人民币元），不是每股价格或投资建议"],
-        }
+        })
 
     def _dcf(self, context: TaskContext, task_input: dict[str, Any], facts: list[dict[str, Any]]) -> dict[str, Any]:
         overrides = task_input.get("assumption_overrides", {})
