@@ -236,6 +236,80 @@ class ValuationTests(unittest.TestCase):
         self.assertEqual(len(result["data"]["sensitivity"]), 9)
         self.assertTrue(result["review_items"])
 
+    def _pe_case(self):
+        items = [fact("fact_target", "999999", "net_profit_parent_ttm", "10000000", "2025-07-01", "2026-06-30")]
+        for code in ("888001", "888002", "888003"):
+            items.extend([
+                fact(f"fact_profit_{code}", code, "net_profit_parent_ttm", "10000000", "2025-07-01", "2026-06-30"),
+                fact(f"fact_cap_{code}", code, "market_cap", "100000000", "2026-09-28", "2026-09-28", scope="not_applicable", period_type="instant", document_id="doc_market_snapshot_demo"),
+            ])
+        return items, {"company_code": "999999", "method": "relative_pe", "as_of_date": "2026-09-28", "statement_scope": "consolidated"}
+
+    def test_pe_excludes_future_or_undated_market_sources_before_calculation(self):
+        for disclosed in (None, "", "invalid", "2026-09-29"):
+            with self.subTest(disclosed=disclosed):
+                items, request = self._pe_case()
+                ctx = context(items, ("doc_annual_demo", "doc_market_snapshot_demo"))
+                ctx.documents.get_document = lambda doc: {"disclosure_date": disclosed if doc == "doc_market_snapshot_demo" else "2026-08-01"}
+                result = wrap("valuation", ctx, ValuationTask().run(ctx, request))
+                self.assertIsNone(result["data"]["valuation_range"]["base"])
+                self.assertEqual(result["calculations"], [])
+                self.assertEqual(ctx.events.events, [])
+                self.assertTrue(any("Excluded fact_cap_" in message for message in result["warnings"]))
+
+    def test_pe_accepts_sources_disclosed_on_cutoff(self):
+        items, request = self._pe_case()
+        ctx = context(items, ("doc_annual_demo", "doc_market_snapshot_demo"))
+        ctx.documents.get_document = lambda doc: {"disclosure_date": "2026-09-28"}
+        result = wrap("valuation", ctx, ValuationTask().run(ctx, request))
+        self.assertEqual(result["data"]["valuation_range"]["base"], "100000000")
+
+    def test_pe_checks_every_source_of_target_profit(self):
+        items, request = self._pe_case()
+        ctx = context(items, ("doc_annual_demo", "doc_market_snapshot_demo", "doc_later_correction"), {"ev_later_correction": "doc_later_correction"})
+        ctx.evidence.items[0]["evidence_ids"].append("ev_later_correction")
+        ctx.documents.get_document = lambda doc: {"disclosure_date": "2026-10-01" if doc == "doc_later_correction" else "2026-08-01"}
+        result = wrap("valuation", ctx, ValuationTask().run(ctx, request))
+        self.assertIsNone(result["data"]["valuation_range"]["base"])
+        self.assertEqual(result["calculations"], [])
+        self.assertIn("ev_later_correction", result["evidence_ids"])
+
+    def test_pe_requires_peer_profit_period_to_match_target(self):
+        items, request = self._pe_case()
+        items[1]["period_start"], items[1]["period_end"] = "2025-04-01", "2026-03-31"
+        ctx = context(items, ("doc_annual_demo", "doc_market_snapshot_demo"))
+        result = wrap("valuation", ctx, ValuationTask().run(ctx, request))
+        self.assertIsNone(result["data"]["valuation_range"]["base"])
+        self.assertEqual(result["calculations"], [])
+
+    def test_pe_rejects_almost_twelve_month_target_period(self):
+        items, request = self._pe_case()
+        items[0]["period_start"] = "2025-07-05"
+        ctx = context(items, ("doc_annual_demo", "doc_market_snapshot_demo"))
+        result = wrap("valuation", ctx, ValuationTask().run(ctx, request))
+        self.assertIsNone(result["data"]["valuation_range"]["base"])
+        self.assertEqual(result["calculations"], [])
+
+    def test_ttm_calendar_handles_leap_day(self):
+        from app.tasks.valuation.plugin import _ttm
+        for start, end in (("2023-03-01", "2024-02-29"), ("2024-03-01", "2025-02-28"), ("2023-07-01", "2024-06-30")):
+            with self.subTest(start=start, end=end):
+                self.assertTrue(_ttm(fact("fact_leap", "999999", "net_profit_parent_ttm", "1", start, end)))
+
+    def test_dcf_excludes_revenue_disclosed_after_cutoff(self):
+        items = [fact("fact_base", "999999", "revenue", "100000000", "2025-01-01", "2025-12-31")]
+        ctx = context(items, ("doc_annual_demo",))
+        ctx.documents.get_document = lambda doc: {"disclosure_date": "2026-10-01"}
+        request = {
+            "company_code": "999999", "method": "dcf", "as_of_date": "2026-09-28", "statement_scope": "consolidated",
+            "assumption_overrides": {"revenue_growth": "5", "operating_margin": "15", "tax_rate": "25", "da_pct": "3", "capex_pct": "4", "nwc_pct": "2", "wacc": "10", "terminal_growth": "2", "net_debt": "5000000"},
+        }
+        result = wrap("valuation", ctx, ValuationTask().run(ctx, request))
+        self.assertIsNone(result["data"]["valuation_range"]["base"])
+        self.assertEqual(result["calculations"], [])
+        self.assertEqual(ctx.events.events, [])
+        self.assertTrue(any("disclosed after" in message for message in result["warnings"]))
+
     def test_dcf_missing_assumptions_returns_no_invented_value(self):
         ctx = context([], ("doc_annual_demo",))
         result = wrap("valuation", ctx, ValuationTask().run(ctx, {
