@@ -5,6 +5,7 @@ from pathlib import Path
 
 from demo.adapters import load_package
 from demo.prepare import prepare
+from demo.ttm_display import fixture_paths
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,11 +17,12 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/fixtures/"):
             name = self.path.removeprefix("/fixtures/")
-            allowed = {d["filename"] for d in load_package()["documents"]}
+            allowed = {d["filename"]: ROOT / "demo" / "fixtures" / d["filename"] for d in load_package()["documents"]}
+            allowed.update(fixture_paths())
             if name not in allowed:
                 self.send_error(404)
                 return
-            raw = (ROOT / "demo" / "fixtures" / name).read_bytes()
+            raw = allowed[name].read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(raw)))

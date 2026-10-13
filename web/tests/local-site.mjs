@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 const fixture = path.resolve(root, "../demo/fixtures");
+const ttmFixture = path.resolve(root, "../app/tasks/valuation/samples/ttm_pe");
 const types = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -15,6 +16,21 @@ export async function localSite(context) {
   await context.route("http://127.0.0.1:8765/**", async (route) => {
     const url = new URL(route.request().url());
     const name = decodeURIComponent(url.pathname);
+    if (name.startsWith("/fixtures/ttm_")) {
+      const file = name.slice("/fixtures/ttm_".length);
+      if (
+        !["annual.txt", "current.txt", "prior.txt", "market.txt"].includes(file)
+      ) {
+        await route.fulfill({ status: 404, body: "Not found" });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "text/plain; charset=utf-8",
+        body: await fs.readFile(path.join(ttmFixture, file)),
+      });
+      return;
+    }
     const target = name.startsWith("/fixtures/")
       ? path.resolve(fixture, name.slice("/fixtures/".length))
       : path.resolve(root, name === "/" ? "index.html" : name.slice(1));

@@ -1,3 +1,4 @@
+import { valuationView, valuationHTML, valuationCSV } from "./valuation.js";
 const $ = (id) => document.getElementById(id);
 const state = {
   mode: "sample",
@@ -10,6 +11,7 @@ const state = {
   urls: [],
   eventRun: null,
   eventPage: null,
+  valuation: null,
 };
 const names = {
   structured_extraction: "公告结构化提取",
@@ -79,6 +81,9 @@ function reset() {
   state.urls.forEach(URL.revokeObjectURL);
   state.urls = [];
   state.result = null;
+  state.valuation = null;
+  $("export-html").hidden = true;
+  $("export-csv").hidden = true;
   state.eventRun = null;
   state.eventPage = null;
   $("more-events").hidden = true;
@@ -227,6 +232,8 @@ function render(result) {
       }
       $("results").append(card);
     }
+  } else if (result.task_type === "valuation") {
+    renderValuation(result);
   } else {
     $("results").append(node("pre", JSON.stringify(result.data, null, 2)));
     result.evidence_ids.forEach((eid, i) =>
@@ -238,6 +245,108 @@ function render(result) {
   $("calculations").textContent = JSON.stringify(result.calculations, null, 2);
   $("raw").textContent = JSON.stringify(result, null, 2);
   renderReviews(result.review_items);
+}
+function renderValuation(result) {
+  let source = state.mode === "sample" ? state.data.package : null;
+  if (source && $("sample-result").value === "4")
+    source = { ...source, facts: source.ttm_pending_facts };
+  const view = valuationView(result, source);
+  state.valuation = view;
+  $("export-html").hidden = false;
+  $("export-csv").hidden = false;
+  const range = result.data.valuation_range;
+  for (const [key, label] of [
+    ["low", "低值"],
+    ["base", "基准"],
+    ["high", "高值"],
+  ]) {
+    const tile = node("div", undefined, "metric");
+    tile.append(
+      node("strong", range[key] === null ? "暂无结果" : range[key]),
+      node("span", `${label} · ${range.unit}`),
+    );
+    $("summary").append(tile);
+  }
+  $("results").append(
+    node(
+      "p",
+      `${view.sample ? "接口演示样例，全部数据虚构。" : ""}估值日 ${result.data.as_of_date}。工具已核算与可比性仍待人工审查分别记录；计算得出的利润不是财报直接披露值。`,
+      "reason",
+    ),
+  );
+  if (range.reason) $("results").append(node("p", range.reason, "reason"));
+  for (const problem of view.problems)
+    $("results").append(
+      node("p", problem + "；计算链不完整，须复核。", "reason"),
+    );
+  for (const entry of view.entries) {
+    const ttm = entry.formula_code === "ttm_from_ytd";
+    const card = node(
+      ttm ? "article" : "details",
+      undefined,
+      ttm ? "card ttm-card" : "calculation-card",
+    );
+    card.id = "calculation-" + entry.calculation_id;
+    card.append(node(ttm ? "h3" : "summary", entry.label));
+    card.append(
+      node(
+        "p",
+        `计算得出 · ${entry.status === "verified" ? (view.sample ? "样例工具已核算" : "工具已核算") : "工具待复核"} · ${entry.status === "verified" && entry.value !== null ? `${entry.value} ${entry.unit}` : "暂无核算结果"}`,
+      ),
+    );
+    if (ttm) card.append(node("p", "上年全年 ＋ 本年累计 − 上年同期累计"));
+    if (entry.period) card.append(node("p", entry.period));
+    card.append(node("p", entry.calculation_id, "reason"));
+    if (entry.reason) card.append(node("p", entry.reason, "reason"));
+    for (const input of entry.inputs) {
+      const row = node("div", undefined, "fact-input");
+      row.append(node("strong", input.role), node("p", input.id, "reason"));
+      if (input.fact) {
+        row.append(
+          node(
+            "p",
+            `原始披露（虚构样例）：${input.fact.value ?? "缺失"} ${input.fact.unit} · ${input.fact.review_status}`,
+          ),
+        );
+        row.append(
+          node(
+            "p",
+            `${input.fact.company_code} · ${input.fact.metric} · ${input.fact.statement_scope} · ${input.fact.period_start} 至 ${input.fact.period_end}`,
+            "reason",
+          ),
+        );
+        for (const source of input.sources)
+          row.append(evidenceButton(source.id, "查看原始证据"));
+      } else
+        row.append(
+          node(
+            "p",
+            "原始事实接口尚待评审；当前仅保留 Fact ID，未读取原始金额。",
+            "reason",
+          ),
+        );
+      card.append(row);
+    }
+    for (const ref of entry.input_calculation_ids) {
+      const button = node("button", "查看上游计算 " + ref);
+      button.onclick = () => {
+        const target = document.getElementById("calculation-" + ref);
+        if (!target) {
+          reportError(new Error("上游计算记录缺失"));
+          return;
+        }
+        if (target.tagName === "DETAILS") target.open = true;
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+      };
+      card.append(button);
+    }
+    $("results").append(card);
+  }
+  const sources = node("div", undefined, "evidence-buttons");
+  result.evidence_ids.forEach((id, index) =>
+    sources.append(evidenceButton(id, "估值来源 " + (index + 1))),
+  );
+  $("results").append(sources);
 }
 function renderReviews(reviews) {
   $("reviews").replaceChildren(node("h3", "人工复核"));
@@ -602,4 +711,26 @@ $("export").onclick = () => {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+function exportValuation(format) {
+  if (!state.valuation) return;
+  const raw =
+    format === "html"
+      ? valuationHTML(state.valuation)
+      : valuationCSV(state.valuation);
+  const url = URL.createObjectURL(
+    new Blob([raw], {
+      type:
+        format === "html"
+          ? "text/html;charset=utf-8"
+          : "text/csv;charset=utf-8",
+    }),
+  );
+  const link = node("a");
+  link.href = url;
+  link.download = `${state.mode === "sample" ? "synthetic-" : ""}${state.result.run_id}.${format}`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("export-html").onclick = () => exportValuation("html");
+$("export-csv").onclick = () => exportValuation("csv");
 loadSample().catch(reportError);

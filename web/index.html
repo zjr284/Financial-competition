@@ -57,6 +57,8 @@
               <option value="0">含错误与待复核声明</option>
               <option value="1">全部数值核验通过</option>
               <option value="2">报告质量规则评分</option>
+              <option value="3">滚动利润估值（虚构接口样例）</option>
+              <option value="4">滚动利润估值（原始利润待复核）</option>
             </select>
           </div>
           <p id="status" role="status" aria-live="polite">加载中…</p>
@@ -76,6 +78,8 @@
             <pre id="raw"></pre>
           </details>
           <button id="export" disabled>导出结果 JSON</button>
+          <button id="export-html" hidden>导出估值 HTML</button>
+          <button id="export-csv" hidden>导出估值 CSV</button>
         </section>
         <aside class="panel evidence">
           <div class="section-heading">
