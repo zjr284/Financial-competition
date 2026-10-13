@@ -1,0 +1,537 @@
+{
+  "purpose": "public research draft, not an API Calculation or verified Fact",
+  "calculations": [
+    {
+      "company_code": "300207",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "1057234512.68",
+        "602615513.46",
+        "855851876.57"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-24/1225160491.PDF",
+          "sha256": "1bf90eb16fc3b0ba81928df909c06ae13d97d27da23216f37f4a7fc1198bec04",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225511224.PDF",
+          "sha256": "ea31d09a4321b657873940a7107b5e7876f5061c23217c45c8256dfc71a3f2f3",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225511224.PDF",
+          "sha256": "ea31d09a4321b657873940a7107b5e7876f5061c23217c45c8256dfc71a3f2f3",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "803998149.57",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_a0f79ef672714ee82277"
+    },
+    {
+      "company_code": "300207",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "532611153.34",
+        "97261353.80",
+        "583260933.86"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-24/1225160491.PDF",
+          "sha256": "1bf90eb16fc3b0ba81928df909c06ae13d97d27da23216f37f4a7fc1198bec04",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225511224.PDF",
+          "sha256": "ea31d09a4321b657873940a7107b5e7876f5061c23217c45c8256dfc71a3f2f3",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225511224.PDF",
+          "sha256": "ea31d09a4321b657873940a7107b5e7876f5061c23217c45c8256dfc71a3f2f3",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "46611573.28",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_535ee036673dd2b651ab"
+    },
+    {
+      "company_code": "300014",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "4134303670.89",
+        "3301230562.92",
+        "1605171455.77"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-03-28/1225045391.PDF",
+          "sha256": "3bee0ca9a6232c60c53f195d078446a45fd4941bd997258b474cebe835eea3b8",
+          "page": 9
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225483571.PDF",
+          "sha256": "e7c873e533141ede8bb9ebff7ac1285484b78fcd4fedd13f12778ebb420c1a7d",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225483571.PDF",
+          "sha256": "e7c873e533141ede8bb9ebff7ac1285484b78fcd4fedd13f12778ebb420c1a7d",
+          "page": 8
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "5830362778.04",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_5c61b9f29495648802fa"
+    },
+    {
+      "company_code": "300014",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "3095709718.80",
+        "2451482110.30",
+        "1156964422.99"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-03-28/1225045391.PDF",
+          "sha256": "3bee0ca9a6232c60c53f195d078446a45fd4941bd997258b474cebe835eea3b8",
+          "page": 9
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225483571.PDF",
+          "sha256": "e7c873e533141ede8bb9ebff7ac1285484b78fcd4fedd13f12778ebb420c1a7d",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225483571.PDF",
+          "sha256": "e7c873e533141ede8bb9ebff7ac1285484b78fcd4fedd13f12778ebb420c1a7d",
+          "page": 8
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "4390227406.11",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_ba1edb09260eeac8d2dc"
+    },
+    {
+      "company_code": "000049",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "292270104.15",
+        "205277265.25",
+        "97545269.94"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225146147.PDF",
+          "sha256": "b6cb989e6e3432cf3c82dcdf1ebb32df7293fe702b01b7b139ebba61c0c6291b",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225476262.PDF",
+          "sha256": "9c448687da45646fc654e51abf73bff96b0d33ff4e2f4d450593d757269fcfe7",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225476262.PDF",
+          "sha256": "9c448687da45646fc654e51abf73bff96b0d33ff4e2f4d450593d757269fcfe7",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "400002099.46",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_84591315ce1aeda1b2eb"
+    },
+    {
+      "company_code": "000049",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "226486133.32",
+        "170789865.63",
+        "66373550.14"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-23/1225146147.PDF",
+          "sha256": "b6cb989e6e3432cf3c82dcdf1ebb32df7293fe702b01b7b139ebba61c0c6291b",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225476262.PDF",
+          "sha256": "9c448687da45646fc654e51abf73bff96b0d33ff4e2f4d450593d757269fcfe7",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225476262.PDF",
+          "sha256": "9c448687da45646fc654e51abf73bff96b0d33ff4e2f4d450593d757269fcfe7",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "330902448.81",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_4e16a79dc27415d0a988"
+    },
+    {
+      "company_code": "002245",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "710609286.03",
+        "510970595.20",
+        "333117912.57"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-14/1225099269.PDF",
+          "sha256": "740d22d9f6b15ea70b6594d963ceaf3e796b2cf7a622bc4ff41d2c20cf3664fb",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225477887.PDF",
+          "sha256": "71409583d1d8ce18a49951d2d3079faea8e35a5df8473020f1723a3777eaefdc",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225477887.PDF",
+          "sha256": "71409583d1d8ce18a49951d2d3079faea8e35a5df8473020f1723a3777eaefdc",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "888461968.66",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_d4ff2ddd08fa5313afb8"
+    },
+    {
+      "company_code": "002245",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "722797448.97",
+        "502607271.69",
+        "355832066.72"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-14/1225099269.PDF",
+          "sha256": "740d22d9f6b15ea70b6594d963ceaf3e796b2cf7a622bc4ff41d2c20cf3664fb",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225477887.PDF",
+          "sha256": "71409583d1d8ce18a49951d2d3079faea8e35a5df8473020f1723a3777eaefdc",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-18/1225477887.PDF",
+          "sha256": "71409583d1d8ce18a49951d2d3079faea8e35a5df8473020f1723a3777eaefdc",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "869572653.94",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_17dd038d114a61c677cc"
+    },
+    {
+      "company_code": "002074",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "2383271938.21",
+        "1386048497.18",
+        "366628567.61"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-04-29/24ee6bf9-6daa-4f4f-ae46-12dfbe099287.pdf",
+          "sha256": "2a255f70026f280deb60691a7937b662615a1b1addb2ce379a56e95698e358fb",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495934.PDF",
+          "sha256": "255134215ce84308aadb7750c53e2dbcc1a0d3c857a9918024c037f610050961",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495934.PDF",
+          "sha256": "255134215ce84308aadb7750c53e2dbcc1a0d3c857a9918024c037f610050961",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "3402691867.78",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_ade00b790e11d0e2029d"
+    },
+    {
+      "company_code": "002074",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "431836780.76",
+        "106911949.80",
+        "72870667.61"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-04-29/24ee6bf9-6daa-4f4f-ae46-12dfbe099287.pdf",
+          "sha256": "2a255f70026f280deb60691a7937b662615a1b1addb2ce379a56e95698e358fb",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495934.PDF",
+          "sha256": "255134215ce84308aadb7750c53e2dbcc1a0d3c857a9918024c037f610050961",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495934.PDF",
+          "sha256": "255134215ce84308aadb7750c53e2dbcc1a0d3c857a9918024c037f610050961",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "465878062.95",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_7c916fdbbcc35fb385c5"
+    },
+    {
+      "company_code": "688772",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "471656086.21",
+        "-203208028.11",
+        "116824051.52"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-03-31/1225052082.PDF",
+          "sha256": "962c3570df4de388333df17cefd5c4c8204c95136c6b90511ba0d05b91d0252e",
+          "page": 9
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-26/1225501342.PDF",
+          "sha256": "05ef42cf6c4eb0e4d4275ab303bb9d0d95101c447c8f2c41fd0538dd17efc0a2",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-26/1225501342.PDF",
+          "sha256": "05ef42cf6c4eb0e4d4275ab303bb9d0d95101c447c8f2c41fd0538dd17efc0a2",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "151624006.58",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_1921ece991bcebef11bb"
+    },
+    {
+      "company_code": "688772",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "310789747.10",
+        "-301193043.05",
+        "45109142.61"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-03-31/1225052082.PDF",
+          "sha256": "962c3570df4de388333df17cefd5c4c8204c95136c6b90511ba0d05b91d0252e",
+          "page": 9
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-26/1225501342.PDF",
+          "sha256": "05ef42cf6c4eb0e4d4275ab303bb9d0d95101c447c8f2c41fd0538dd17efc0a2",
+          "page": 7
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-26/1225501342.PDF",
+          "sha256": "05ef42cf6c4eb0e4d4275ab303bb9d0d95101c447c8f2c41fd0538dd17efc0a2",
+          "page": 7
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "-35512438.56",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_10907ae9ce325f9418b9"
+    },
+    {
+      "company_code": "001283",
+      "metric": "net_profit_parent",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "203074851.02",
+        "122933409.88",
+        "96710693.57"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-04-03/7c730243-2ecc-4169-9bda-1a44011d3de6.PDF",
+          "sha256": "9b22483c7dbc26f006e0006ee09578c7d441808a6ef62cbd73441fabdee4b69d",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "229297567.33",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_db173fa0ac6d6297e587"
+    },
+    {
+      "company_code": "001283",
+      "metric": "net_profit_parent_excl_nonrecurring",
+      "formula": "annual + current_h1 - prior_h1",
+      "input_values": [
+        "192702261.29",
+        "100433683.13",
+        "79839749.71"
+      ],
+      "input_sources": [
+        {
+          "source_url": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-04-03/7c730243-2ecc-4169-9bda-1a44011d3de6.PDF",
+          "sha256": "9b22483c7dbc26f006e0006ee09578c7d441808a6ef62cbd73441fabdee4b69d",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        },
+        {
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-25/1225495039.PDF",
+          "sha256": "04fae703e84f03242a10751377261ddc6c5d82c8bb44ea8d9b7d24f98dc387a6",
+          "page": 8
+        }
+      ],
+      "input_periods": [
+        "2025-01-01/2025-12-31",
+        "2026-01-01/2026-06-30",
+        "2025-01-01/2025-06-30"
+      ],
+      "value": "213296194.71",
+      "unit": "CNY",
+      "period_start": "2025-07-01",
+      "period_end": "2026-06-30",
+      "review_status": "needs_review",
+      "calculation_id": "calc_screen_17f793dd09145050b37a"
+    }
+  ]
+}

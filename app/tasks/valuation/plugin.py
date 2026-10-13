@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date
+from calendar import monthrange
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -16,6 +17,7 @@ from app.tasks._finance_common import (
     unique,
 )
 from contracts.ports import TaskContext
+from .ttm_inputs import prepare_ttm_inputs
 
 
 DCF_REQUIRED = (
@@ -40,7 +42,11 @@ def _full_year(fact: dict[str, Any]) -> bool:
 
 def _ttm(fact: dict[str, Any]) -> bool:
     start, end = date.fromisoformat(fact["period_start"]), date.fromisoformat(fact["period_end"])
-    return fact["period_type"] == "cumulative" and 360 <= (end - start).days <= 366
+    prior_month_days = monthrange(end.year - 1, end.month)[1]
+    prior_day = (prior_month_days if end.day == monthrange(end.year, end.month)[1]
+                 else min(end.day, prior_month_days))
+    prior_year_end = end.replace(year=end.year - 1, day=prior_day)
+    return fact["period_type"] == "cumulative" and start == prior_year_end + timedelta(days=1)
 
 
 class ValuationTask:
@@ -48,11 +54,55 @@ class ValuationTask:
 
     def run(self, context: TaskContext, task_input: dict[str, Any]) -> dict[str, Any]:
         method = task_input["method"]
-        if method == "relative_pe":
-            return self._relative_pe(context, task_input)
-        if method == "dcf":
-            return self._dcf(context, task_input)
-        raise ValueError(f"Unsupported valuation method: {method}")
+        if method not in {"relative_pe", "dcf"}:
+            raise ValueError(f"Unsupported valuation method: {method}")
+        metrics = ["market_cap", "net_profit_parent_ttm", "net_profit_parent"] if method == "relative_pe" else ["revenue"]
+        facts = context.evidence.extract_facts(list(context.document_ids), metrics)
+        available, excluded = self._available_facts(context, facts, task_input["as_of_date"])
+        payload = (self._relative_pe(context, task_input, available) if method == "relative_pe"
+                   else self._dcf(context, task_input, available))
+        for fact, reason in excluded:
+            message = f"Excluded {fact['fact_id']}: {reason}"
+            payload["warnings"].append(message)
+            payload["review_items"].append(review_item(context.run_id, message, fact["evidence_ids"]))
+            payload["evidence_ids"] = unique(payload["evidence_ids"] + fact["evidence_ids"])
+        return payload
+
+    @staticmethod
+    def _available_facts(
+        context: TaskContext, facts: list[dict[str, Any]], as_of_date: str,
+    ) -> tuple[list[dict[str, Any]], list[tuple[dict[str, Any], str]]]:
+        """Use only facts whose complete source chain was disclosed by the cutoff."""
+        available, excluded = [], []
+        cutoff = date.fromisoformat(as_of_date)
+        documents: dict[str, dict[str, Any]] = {}
+        for fact in facts:
+            if fact["review_status"] == "rejected":
+                continue
+            reason = None
+            if not fact["evidence_ids"]:
+                reason = "Missing source evidence"
+            for evidence_id in fact["evidence_ids"]:
+                evidence = context.evidence.get_evidence(evidence_id)
+                document_id = evidence["document_id"]
+                if document_id not in context.document_ids:
+                    raise ValueError(f"Evidence {evidence_id} is outside this run's document snapshot")
+                if document_id not in documents:
+                    documents[document_id] = context.documents.get_document(document_id)
+                disclosed = documents[document_id].get("disclosure_date")
+                try:
+                    disclosed_date = date.fromisoformat(disclosed) if disclosed else None
+                except (ValueError, TypeError):
+                    disclosed_date = None
+                if disclosed_date is None:
+                    reason = "Missing or invalid source disclosure date"
+                elif disclosed_date > cutoff:
+                    reason = "Source was disclosed after valuation as_of_date"
+            if reason:
+                excluded.append((fact, reason))
+            else:
+                available.append(fact)
+        return available, excluded
 
     @staticmethod
     def _empty(
@@ -79,16 +129,37 @@ class ValuationTask:
         }
 
     def _relative_pe(
-        self, context: TaskContext, task_input: dict[str, Any]
+        self, context: TaskContext, task_input: dict[str, Any], facts: list[dict[str, Any]],
     ) -> dict[str, Any]:
         as_of = task_input["as_of_date"]
         scope = task_input["statement_scope"]
         target = task_input["company_code"]
-        facts = context.evidence.extract_facts(
-            list(context.document_ids), ["market_cap", "net_profit_parent_ttm"]
-        )
         prime_calculator(context, facts)
+        facts, origins, upstream, issues = prepare_ttm_inputs(context, facts, scope, as_of)
         index = FactIndex(facts)
+
+        computed: list[dict[str, Any]] = []
+        source_facts = {f["fact_id"]: f for f in facts}
+
+        def profit_inputs(profit: dict[str, Any]) -> tuple[list[str], list[str]]:
+            origin = origins.get(profit["fact_id"])
+            return ([], [origin]) if origin else ([profit["fact_id"]], [])
+
+        def finish(payload: dict[str, Any]) -> dict[str, Any]:
+            payload["calculations"] = list({c["calculation_id"]: c for c in upstream + computed + payload["calculations"]}.values())
+            payload["evidence_ids"] = unique(payload["evidence_ids"] + [
+                evidence_id for calc in upstream for fid in calc["input_fact_ids"]
+                for evidence_id in source_facts[fid]["evidence_ids"]
+            ])
+            for reason, refs in issues:
+                payload["warnings"].append(reason)
+                payload["review_items"].append(review_item(context.run_id, reason, refs))
+                payload["evidence_ids"] = unique(payload["evidence_ids"] + refs)
+            return payload
+
+        def empty(reason: str, refs: list[str] | None = None) -> dict[str, Any]:
+            return finish(self._empty(context, task_input, reason, refs))
+
         relevant = [
             fact for fact in index.all()
             if fact["metric"] == "net_profit_parent_ttm"
@@ -108,19 +179,21 @@ class ValuationTask:
                 )
             except FactConflict:
                 if company == target:
-                    return self._empty(context, task_input, "Conflicting target TTM earnings")
+                    return empty("Conflicting target TTM earnings")
                 continue
             if selected is not None:
                 by_company[company] = selected
         target_profit = by_company.get(target)
         if target_profit is None or target_profit["review_status"] != "verified" or decimal_value(target_profit["value"]) is None:
-            return self._empty(context, task_input, "Missing recent target TTM parent net profit")
+            return empty("Missing recent target TTM parent net profit")
         if decimal_value(target_profit["value"]) <= 0:
-            return self._empty(context, task_input, "Target TTM earnings are non-positive", target_profit["evidence_ids"])
+            return empty("Target TTM earnings are non-positive", target_profit["evidence_ids"])
 
         peer_inputs: list[tuple[dict[str, Any], dict[str, Any]]] = []
         for company, profit in by_company.items():
             if company == target or profit["review_status"] != "verified":
+                continue
+            if (profit["period_start"], profit["period_end"]) != (target_profit["period_start"], target_profit["period_end"]):
                 continue
             try:
                 market = index.select(company, "market_cap", as_of, "not_applicable", "instant")
@@ -129,25 +202,26 @@ class ValuationTask:
             if market is not None and market["review_status"] == "verified":
                 peer_inputs.append((market, profit))
         if len(peer_inputs) < 3:
-            return self._empty(
-                context, task_input,
-                "At least three peers with same-date market caps and recent TTM profits are required",
+            return empty(
+                "At least three peers with same-date market caps and TTM profits matching the target period are required",
                 target_profit["evidence_ids"],
             )
         chosen = [target_profit] + [item for pair in peer_inputs for item in pair]
         evidence_ids = source_ids_for_facts(context, chosen)
-        calculations: list[dict[str, Any]] = []
+        calculations: list[dict[str, Any]] = computed
         multiples: list[Decimal] = []
         for market, profit in peer_inputs:
+            profit_fact_ids, profit_calc_ids = profit_inputs(profit)
             calc = context.calculations.calculate(
-                "pe", [market["fact_id"], profit["fact_id"]], [], {"as_of_date": as_of}
+                "pe", [market["fact_id"]] + profit_fact_ids, profit_calc_ids,
+                {"as_of_date": as_of}
             )
             calculations.append(calc)
             record_calculation(context, calc)
             if calc["status"] == "verified":
                 multiples.append(Decimal(calc["value"]))
         if len(multiples) < 3:
-            return self._empty(context, task_input, "Fewer than three valid positive peer PE values", evidence_ids)
+            return empty("Fewer than three valid positive peer PE values", evidence_ids)
         multiples.sort()
         low_multiple = multiples[0]
         high_multiple = multiples[-1]
@@ -157,23 +231,24 @@ class ValuationTask:
             else (multiples[middle - 1] + multiples[middle]) / 2
         )
         values: dict[str, str] = {}
+        target_fact_ids, target_calc_ids = profit_inputs(target_profit)
         for name, multiple in (
             ("low", low_multiple), ("base", base_multiple), ("high", high_multiple)
         ):
             calc = context.calculations.calculate(
-                "relative_equity_value", [target_profit["fact_id"]], [],
+                "relative_equity_value", target_fact_ids, target_calc_ids,
                 {"multiple": _number(multiple)},
             )
             calculations.append(calc)
             record_calculation(context, calc)
             if calc["status"] != "verified":
-                return self._empty(context, task_input, calc["reason"], evidence_ids)
+                return empty(calc["reason"], evidence_ids)
             values[name] = calc["value"]
         sensitivity: list[dict[str, Any]] = []
         for multiple in (low_multiple, base_multiple, high_multiple):
             for shock in (Decimal("-10"), Decimal("0"), Decimal("10")):
                 calc = context.calculations.calculate(
-                    "relative_equity_value", [target_profit["fact_id"]], [],
+                    "relative_equity_value", target_fact_ids, target_calc_ids,
                     {"multiple": _number(multiple), "earnings_shock_percent": _number(shock)},
                 )
                 calculations.append(calc)
@@ -186,7 +261,7 @@ class ValuationTask:
                     "valuation": calc["value"],
                     "unit": "CNY",
                 })
-        return {
+        return finish({
             "data": {
                 "method": "relative_pe",
                 "as_of_date": as_of,
@@ -204,9 +279,9 @@ class ValuationTask:
             "calculations": list({item["calculation_id"]: item for item in calculations}.values()),
             "review_items": [review_item(context.run_id, "Review peer comparability and market snapshot date", evidence_ids)],
             "warnings": ["区间为企业股权总价值（人民币元），不是每股价格或投资建议"],
-        }
+        })
 
-    def _dcf(self, context: TaskContext, task_input: dict[str, Any]) -> dict[str, Any]:
+    def _dcf(self, context: TaskContext, task_input: dict[str, Any], facts: list[dict[str, Any]]) -> dict[str, Any]:
         overrides = task_input.get("assumption_overrides", {})
         missing = [key for key in DCF_REQUIRED if key not in overrides]
         if missing:
@@ -236,7 +311,6 @@ class ValuationTask:
         if assumptions["wacc"] - 1 <= assumptions["terminal_growth"] + Decimal("0.5"):
             return self._empty(context, task_input, "Sensitivity grid requires WACC - 1% above terminal growth + 0.5%")
 
-        facts = context.evidence.extract_facts(list(context.document_ids), ["revenue"])
         prime_calculator(context, facts)
         index = FactIndex(facts)
         candidates = [
