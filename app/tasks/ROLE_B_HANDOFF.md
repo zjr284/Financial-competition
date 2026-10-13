@@ -175,3 +175,7 @@ python3 contracts/validate_contracts.py
 ## 2026-10-12 TTM 计算链接入
 
 新增 [TTM 接入交接](valuation/TTM_INTEGRATION_HANDOFF.md) 与完全虚构的目标加三家同业资料包。B 估值通过 input_calculation_ids 消费 TTM，保留完整上游记录；生产 A 工具缺公式时返回待复核，不将派生值登记为原始事实。公共派生 Fact 方案仅有 B 的有条件确认，尚待 A/C；真实候选未自动转正。
+
+## 2026-10-13 A/B 生产接入
+
+生产工具已实现 ttm_from_ytd 和基于 Calculation 的 PE/目标估值，虚构样例已移除成功演示计算器。新增工具校验、生产 PDF 资料包、JSON 导出与固定复核快照重放测试；交接文件已改为当前状态及 C 后续清单。真实候选未转正，公共 Fact 字段未改。

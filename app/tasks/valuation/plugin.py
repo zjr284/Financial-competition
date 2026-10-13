@@ -214,7 +214,7 @@ class ValuationTask:
             profit_fact_ids, profit_calc_ids = profit_inputs(profit)
             calc = context.calculations.calculate(
                 "pe", [market["fact_id"]] + profit_fact_ids, profit_calc_ids,
-                {"as_of_date": as_of}
+                {"as_of_date": as_of, "company_code": market["company_code"], "statement_scope": scope}
             )
             calculations.append(calc)
             record_calculation(context, calc)
@@ -232,12 +232,15 @@ class ValuationTask:
         )
         values: dict[str, str] = {}
         target_fact_ids, target_calc_ids = profit_inputs(target_profit)
+        target_context = {"company_code": target, "statement_scope": scope,
+                          "period_start": target_profit["period_start"],
+                          "period_end": target_profit["period_end"], "as_of_date": as_of}
         for name, multiple in (
             ("low", low_multiple), ("base", base_multiple), ("high", high_multiple)
         ):
             calc = context.calculations.calculate(
                 "relative_equity_value", target_fact_ids, target_calc_ids,
-                {"multiple": _number(multiple)},
+                {**target_context, "multiple": _number(multiple)},
             )
             calculations.append(calc)
             record_calculation(context, calc)
@@ -249,7 +252,7 @@ class ValuationTask:
             for shock in (Decimal("-10"), Decimal("0"), Decimal("10")):
                 calc = context.calculations.calculate(
                     "relative_equity_value", target_fact_ids, target_calc_ids,
-                    {"multiple": _number(multiple), "earnings_shock_percent": _number(shock)},
+                    {**target_context, "multiple": _number(multiple), "earnings_shock_percent": _number(shock)},
                 )
                 calculations.append(calc)
                 record_calculation(context, calc)

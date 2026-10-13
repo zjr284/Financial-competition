@@ -1,7 +1,7 @@
 """B-owned TTM selection; derived values stay internal, never become source Facts.
 
-The injected CalculationPort performs all arithmetic. Production activation depends
-on A implementing ttm_from_ytd and PE consumption of input_calculation_ids.
+The production CalculationPort performs all arithmetic and validates the TTM
+source periods independently. Only reviewed original inputs are accepted.
 """
 from datetime import date, timedelta
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import jsonschema
 
-from app.tasks.valuation.samples.ttm_pe.demo import HERE, run_demo
+from app.tasks.valuation.samples.ttm_pe.demo import HERE, UnsupportedFormulaCalculator, run_demo
 from app.tools import FinancialCalculator
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -40,11 +40,17 @@ class TTMValuationTests(unittest.TestCase):
                 self.assertEqual(len(c['input_calculation_ids']),1)
         self.assertEqual(result,run_demo(copy.deepcopy(self.data)))
 
-    def test_current_production_calculator_fails_closed(self):
-        result=run_demo(self.data,FinancialCalculator);self.validate(result)
+    def test_unsupported_formula_adapter_fails_closed(self):
+        result=run_demo(self.data,UnsupportedFormulaCalculator);self.validate(result)
         self.assertIsNone(result['data']['valuation_range']['base'])
         self.assertTrue(all(c['status']=='needs_review' for c in result['calculations']))
         self.assertIn('Unsupported formula_code', ' '.join(result['warnings']))
+
+    def test_production_outputs_match_saved_success_and_pending_examples(self):
+        self.assertEqual(run_demo(self.data),json.loads((HERE/'success.json').read_text()))
+        source=next(f for f in self.data['facts'] if f['fact_id']=='fact_demo_999999_current')
+        source['review_status']='needs_review';source['reason']='Synthetic pending review example'
+        self.assertEqual(run_demo(self.data),json.loads((HERE/'needs_review.json').read_text()))
 
     def test_missing_target_source_produces_review_not_value(self):
         self.data['facts']=[f for f in self.data['facts'] if f['fact_id']!='fact_demo_999999_prior']

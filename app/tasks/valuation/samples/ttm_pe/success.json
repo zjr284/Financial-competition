@@ -3,7 +3,7 @@
   "run_id": "run_demo_ttm_pe",
   "task_type": "valuation",
   "status": "needs_review",
-  "generated_at": "2026-10-12T12:00:00+08:00",
+  "generated_at": "2026-10-13T12:00:00+08:00",
   "input_document_ids": [
     "doc_demo_annual",
     "doc_demo_current",
@@ -144,7 +144,7 @@
   ],
   "calculations": [
     {
-      "calculation_id": "calc_fa8a06b8a063d8560fa3",
+      "calculation_id": "calc_cc5089e0396a34c67695",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999991_annual",
@@ -163,7 +163,9 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
       "value": "100",
       "unit": "CNY",
@@ -172,7 +174,7 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_47b0881e47596e739b54",
+      "calculation_id": "calc_6ad65d294f2fbb42bc91",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999992_annual",
@@ -191,7 +193,9 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
       "value": "120",
       "unit": "CNY",
@@ -200,7 +204,7 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_c98d715dec75d79fdb00",
+      "calculation_id": "calc_89df8ebeee4058adce0c",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999993_annual",
@@ -219,7 +223,9 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
       "value": "200",
       "unit": "CNY",
@@ -228,7 +234,7 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_d740849f156d2600095a",
+      "calculation_id": "calc_e9ca48ecb056d7878fb1",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999999_annual",
@@ -247,7 +253,9 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
       "value": "120",
       "unit": "CNY",
@@ -256,16 +264,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_85dcc74547d4073f6d2c",
+      "calculation_id": "calc_d08c02bfa519e9284aab",
       "formula_code": "pe",
       "input_fact_ids": [
         "fact_demo_999991_market"
       ],
       "input_calculation_ids": [
-        "calc_fa8a06b8a063d8560fa3"
+        "calc_cc5089e0396a34c67695"
       ],
       "parameters": {
-        "as_of_date": "2026-09-30"
+        "as_of_date": "2026-09-30",
+        "company_code": "999991",
+        "statement_scope": "consolidated"
       },
       "value": "10",
       "unit": "times",
@@ -274,16 +284,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_a859a4f21d288f98c3ff",
+      "calculation_id": "calc_83e44d4f3dafac093268",
       "formula_code": "pe",
       "input_fact_ids": [
         "fact_demo_999992_market"
       ],
       "input_calculation_ids": [
-        "calc_47b0881e47596e739b54"
+        "calc_6ad65d294f2fbb42bc91"
       ],
       "parameters": {
-        "as_of_date": "2026-09-30"
+        "as_of_date": "2026-09-30",
+        "company_code": "999992",
+        "statement_scope": "consolidated"
       },
       "value": "12.5",
       "unit": "times",
@@ -292,16 +304,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_7759eed9b624fa0e61c0",
+      "calculation_id": "calc_6a74cc2309e44ed88743",
       "formula_code": "pe",
       "input_fact_ids": [
         "fact_demo_999993_market"
       ],
       "input_calculation_ids": [
-        "calc_c98d715dec75d79fdb00"
+        "calc_89df8ebeee4058adce0c"
       ],
       "parameters": {
-        "as_of_date": "2026-09-30"
+        "as_of_date": "2026-09-30",
+        "company_code": "999993",
+        "statement_scope": "consolidated"
       },
       "value": "20",
       "unit": "times",
@@ -310,13 +324,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_3dfe49767b3f434d43b8",
+      "calculation_id": "calc_4b2895776c7c4e4ad64a",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "10"
       },
       "value": "1200",
@@ -326,13 +345,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_caf9d344c7664019e120",
+      "calculation_id": "calc_898a2ea4fdc25635cd8f",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "12.5"
       },
       "value": "1500",
@@ -342,13 +366,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_8e3460189b710d2c8ac0",
+      "calculation_id": "calc_907f2fd52abc5af00389",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "20"
       },
       "value": "2400",
@@ -358,13 +387,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_135a95d9e7526f4afdef",
+      "calculation_id": "calc_087a6b04f4321845d1ec",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "10",
         "earnings_shock_percent": "-10"
       },
@@ -375,13 +409,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_2f457c0805e19194da31",
+      "calculation_id": "calc_cdee303f70453a118223",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "10",
         "earnings_shock_percent": "0"
       },
@@ -392,13 +431,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_61cf623e3259aa36f32f",
+      "calculation_id": "calc_7111731885fa8730af47",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "10",
         "earnings_shock_percent": "10"
       },
@@ -409,13 +453,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_08c26707ca457212a954",
+      "calculation_id": "calc_da1e2b7cb14bffd1cddf",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "12.5",
         "earnings_shock_percent": "-10"
       },
@@ -426,13 +475,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_e9a294aa94cc49847b03",
+      "calculation_id": "calc_e4ff0512514148c2ed90",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "12.5",
         "earnings_shock_percent": "0"
       },
@@ -443,13 +497,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_ac448c63e24c0f2576f6",
+      "calculation_id": "calc_0221823e91558e471b5f",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "12.5",
         "earnings_shock_percent": "10"
       },
@@ -460,13 +519,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_3a25f2f2178ae06ed975",
+      "calculation_id": "calc_26697a5fc2f0f088b85a",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "20",
         "earnings_shock_percent": "-10"
       },
@@ -477,13 +541,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_addc3e1499ea545a4e4a",
+      "calculation_id": "calc_70200c84431156b9c485",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "20",
         "earnings_shock_percent": "0"
       },
@@ -494,13 +563,18 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_258d85c6df2c2a3e34ee",
+      "calculation_id": "calc_d601af91abaadf420842",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
-        "calc_d740849f156d2600095a"
+        "calc_e9ca48ecb056d7878fb1"
       ],
       "parameters": {
+        "company_code": "999999",
+        "statement_scope": "consolidated",
+        "period_start": "2025-07-01",
+        "period_end": "2026-06-30",
+        "as_of_date": "2026-09-30",
         "multiple": "20",
         "earnings_shock_percent": "10"
       },
@@ -537,7 +611,7 @@
     }
   ],
   "warnings": [
-    "接口演示样例：全部数据虚构；DemoCalculator 仅演示拟议工具行为，生产 A 工具尚未接入。",
+    "接口演示样例：全部数据虚构；使用生产 FinancialCalculator，真实财报资料仍需独立复核。",
     "区间为企业股权总价值（人民币元），不是每股价格或投资建议"
   ]
 }
