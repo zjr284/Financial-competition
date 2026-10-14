@@ -312,3 +312,7 @@ review_items: review_WGEIL7F72H3YMY3GOP4V → target_id=event_QI6OXT3MFSSPR5DI36
 * 实时运行状态：`GET /runs/{id}` 轮询 + `GET /runs/{id}/events` 事件流；
 * 复核交互：`POST /reviews/{id}/decision`（`accept`/`reject`/`correct`），`correct` 会回写字段值并重算 `result_hash`；
 * A 新增的 `/documents/{id}/parse`、`/documents/{id}/evidence`、`/runs/{id}/replay` **尚未写入 OpenAPI**（Q6），前端依赖前请先在三人评审确认。
+
+## 2026-10-14：估值专用服务端导出
+
+app/export/valuation.py 与编排器导出路径已支持估值 CSV/HTML、完整计算引用和固定事实快照来源。旧 Run 不从总事实清单补值，来源哈希与原运行事件一致后才展开原始值；JSON 的 TaskResult 内容保持不变。导出日志仅保留摘要/结果与来源快照哈希/产物哈希，不记录本机绝对路径。运行和成功/待复核样例见 app/tasks/valuation/VALIDATION_20261014.md，公共 API 路径仍为冻结的 10 条。

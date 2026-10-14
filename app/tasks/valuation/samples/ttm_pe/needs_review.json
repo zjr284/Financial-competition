@@ -3,7 +3,7 @@
   "run_id": "run_demo_ttm_pe",
   "task_type": "valuation",
   "status": "needs_review",
-  "generated_at": "2026-10-12T12:00:00+08:00",
+  "generated_at": "2026-10-13T12:00:00+08:00",
   "input_document_ids": [
     "doc_demo_annual",
     "doc_demo_current",
@@ -39,7 +39,7 @@
   ],
   "calculations": [
     {
-      "calculation_id": "calc_fa8a06b8a063d8560fa3",
+      "calculation_id": "calc_cc5089e0396a34c67695",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999991_annual",
@@ -58,16 +58,18 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
-      "value": null,
-      "unit": "times",
-      "rounding_rule": "ROUND_HALF_UP:0.0001",
-      "status": "needs_review",
-      "reason": "Unsupported formula_code: ttm_from_ytd"
+      "value": "100",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
     },
     {
-      "calculation_id": "calc_47b0881e47596e739b54",
+      "calculation_id": "calc_6ad65d294f2fbb42bc91",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999992_annual",
@@ -86,16 +88,18 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
-      "value": null,
-      "unit": "times",
-      "rounding_rule": "ROUND_HALF_UP:0.0001",
-      "status": "needs_review",
-      "reason": "Unsupported formula_code: ttm_from_ytd"
+      "value": "120",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
     },
     {
-      "calculation_id": "calc_c98d715dec75d79fdb00",
+      "calculation_id": "calc_89df8ebeee4058adce0c",
       "formula_code": "ttm_from_ytd",
       "input_fact_ids": [
         "fact_demo_999993_annual",
@@ -114,41 +118,15 @@
         "current_ytd_period_start": "2026-01-01",
         "current_ytd_period_end": "2026-06-30",
         "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
+        "prior_ytd_period_end": "2025-06-30",
+        "restated": "false",
+        "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"
       },
-      "value": null,
-      "unit": "times",
-      "rounding_rule": "ROUND_HALF_UP:0.0001",
-      "status": "needs_review",
-      "reason": "Unsupported formula_code: ttm_from_ytd"
-    },
-    {
-      "calculation_id": "calc_d740849f156d2600095a",
-      "formula_code": "ttm_from_ytd",
-      "input_fact_ids": [
-        "fact_demo_999999_annual",
-        "fact_demo_999999_current",
-        "fact_demo_999999_prior"
-      ],
-      "input_calculation_ids": [],
-      "parameters": {
-        "company_code": "999999",
-        "metric": "net_profit_parent_ttm",
-        "statement_scope": "consolidated",
-        "period_start": "2025-07-01",
-        "period_end": "2026-06-30",
-        "annual_period_start": "2025-01-01",
-        "annual_period_end": "2025-12-31",
-        "current_ytd_period_start": "2026-01-01",
-        "current_ytd_period_end": "2026-06-30",
-        "prior_ytd_period_start": "2025-01-01",
-        "prior_ytd_period_end": "2025-06-30"
-      },
-      "value": null,
-      "unit": "times",
-      "rounding_rule": "ROUND_HALF_UP:0.0001",
-      "status": "needs_review",
-      "reason": "Unsupported formula_code: ttm_from_ytd"
+      "value": "200",
+      "unit": "CNY",
+      "rounding_rule": "ROUND_HALF_UP:0.01",
+      "status": "verified",
+      "reason": null
     }
   ],
   "review_items": [
@@ -160,42 +138,9 @@
       "evidence_ids": []
     },
     {
-      "review_id": "review_ef0a6e07c5b2f61a7f20",
+      "review_id": "review_29a3a0ec34ead915df00",
       "target_id": "run_demo_ttm_pe",
-      "reason": "TTM 999991: Unsupported formula_code: ttm_from_ytd",
-      "status": "pending",
-      "evidence_ids": [
-        "ev_demo_999991_annual",
-        "ev_demo_999991_current",
-        "ev_demo_999991_prior"
-      ]
-    },
-    {
-      "review_id": "review_654b97b03695892c0843",
-      "target_id": "run_demo_ttm_pe",
-      "reason": "TTM 999992: Unsupported formula_code: ttm_from_ytd",
-      "status": "pending",
-      "evidence_ids": [
-        "ev_demo_999992_annual",
-        "ev_demo_999992_current",
-        "ev_demo_999992_prior"
-      ]
-    },
-    {
-      "review_id": "review_930d70ec91c13ccd3207",
-      "target_id": "run_demo_ttm_pe",
-      "reason": "TTM 999993: Unsupported formula_code: ttm_from_ytd",
-      "status": "pending",
-      "evidence_ids": [
-        "ev_demo_999993_annual",
-        "ev_demo_999993_current",
-        "ev_demo_999993_prior"
-      ]
-    },
-    {
-      "review_id": "review_be84aa432c71d455fd26",
-      "target_id": "run_demo_ttm_pe",
-      "reason": "TTM 999999: Unsupported formula_code: ttm_from_ytd",
+      "reason": "TTM 999999: source profits need review",
       "status": "pending",
       "evidence_ids": [
         "ev_demo_999999_annual",
@@ -205,11 +150,8 @@
     }
   ],
   "warnings": [
-    "接口演示样例：全部数据虚构；DemoCalculator 仅演示拟议工具行为，生产 A 工具尚未接入。",
+    "接口演示样例：全部数据虚构；使用生产 FinancialCalculator，真实财报资料仍需独立复核。",
     "Missing recent target TTM parent net profit",
-    "TTM 999991: Unsupported formula_code: ttm_from_ytd",
-    "TTM 999992: Unsupported formula_code: ttm_from_ytd",
-    "TTM 999993: Unsupported formula_code: ttm_from_ytd",
-    "TTM 999999: Unsupported formula_code: ttm_from_ytd"
+    "TTM 999999: source profits need review"
   ]
 }

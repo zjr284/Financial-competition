@@ -428,19 +428,35 @@ class Orchestrator:
         from app.export.service import run_export
 
         result = self.get_result(run_id)
+        valuation_sources = None
+        snapshot_hash = None
+        requested_formats = formats or ["json", "csv", "html"]
+        if result["task_type"] == "valuation" and any(f.lower() in {"csv", "html"} for f in requested_formats):
+            from app.export.valuation import load_pinned_sources
+            snapshot_hashes = {item[2] for item in self.events.trace(run_id)
+                               if item[1] == "b.reviewed_fact_snapshot"}
+            if len(snapshot_hashes) > 1:
+                raise validation_error("本次运行存在不同版本的事实快照")
+            snapshot_hash = next(iter(snapshot_hashes), None)
+            valuation_sources = load_pinned_sources(
+                self.settings.runs_dir / run_id / "b-reviewed-facts.json", result,
+                self.documents, self.parse, snapshot_hash,
+            )
         outcome = run_export(
             run_id=run_id,
             result=result,
             settings=self.settings,
             formats=formats or ["json", "csv", "html"],
             out_dir=Path(out_dir) if out_dir else None,
+            valuation_sources=valuation_sources,
         )
         self.events.append(
             run_id,
             event_type="export",
-            message=f"导出 {', '.join(outcome.formats)} 到 {Path(outcome.files[0]).parent if outcome.files else '—'}",
+            message=f"导出 {', '.join(outcome.formats)}；产物哈希已登记",
             tool_name="export_run",
-            input_hash=digest_of({"run_id": run_id, "formats": outcome.formats}),
+            input_hash=digest_of({"run_id": run_id, "formats": outcome.formats, "result": digest_of(result),
+                                  "fact_snapshot": snapshot_hash}),
             output_hash=digest_of(outcome.hashes),
             payload={"files": [Path(item).name for item in outcome.files], "hashes": outcome.hashes},
         )

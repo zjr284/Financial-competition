@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from calendar import monthrange
+from copy import deepcopy
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from typing import Any, Iterable
 
@@ -29,6 +31,47 @@ def _same_period(a: dict[str, Any], b: dict[str, Any]) -> bool:
     )
 
 
+def _month_count(start: date, end: date) -> int:
+    if start.day != 1 or end.day != monthrange(end.year, end.month)[1]:
+        raise ValueError("TTM inputs must cover complete calendar months")
+    return (end.year - start.year) * 12 + end.month - start.month + 1
+
+
+def _ttm_metadata(facts: list[dict[str, Any]]) -> dict[str, str]:
+    if len(facts) != 3:
+        raise ValueError("ttm_from_ytd expects 3 facts and 0 calculations")
+    annual, current, prior = facts
+    if annual["metric"] not in {"net_profit_parent", "net_profit_parent_excl_nonrecurring"}:
+        raise ValueError("TTM requires disclosed parent or adjusted parent net profit")
+    for key in ("company_code", "metric", "unit", "statement_scope", "restated"):
+        if any(f[key] != annual[key] for f in facts):
+            raise ValueError(f"TTM input {key} mismatch; reconcile the reporting basis")
+    if annual["unit"] != "CNY" or annual["statement_scope"] == "not_applicable":
+        raise ValueError("TTM requires CNY statement profits")
+    if any(f["period_type"] != "cumulative" for f in facts):
+        raise ValueError("TTM requires cumulative flow inputs")
+    spans = [(date.fromisoformat(f["period_start"]), date.fromisoformat(f["period_end"])) for f in facts]
+    (a_start, a_end), (c_start, c_end), (p_start, p_end) = spans
+    lengths = [_month_count(start, end) for start, end in spans]
+    if lengths[0] != 12 or not 1 <= lengths[1] <= 12 or lengths[1] != lengths[2]:
+        raise ValueError("TTM requires one annual period and corresponding YTD periods")
+    if c_start != a_end + timedelta(days=1) or p_start != a_start or not a_start <= p_end <= a_end:
+        raise ValueError("TTM annual and YTD periods do not align")
+    if c_start.year - p_start.year != 1 or c_start.month != p_start.month:
+        raise ValueError("TTM YTD starts must correspond one year apart")
+    if c_end.year - p_end.year != 1 or c_end.month != p_end.month:
+        raise ValueError("TTM YTD ends must correspond one year apart")
+    metadata = {"company_code": annual["company_code"],
+                "metric": annual["metric"] + "_ttm", "statement_scope": annual["statement_scope"],
+                "restated": str(annual["restated"]).lower(),
+                "period_start": (p_end + timedelta(days=1)).isoformat(), "period_end": c_end.isoformat(),
+                "calendar_rule": "complete_months;prior_end_plus_one_day;month_end_leap_year"}
+    for role, fact in zip(("annual", "current_ytd", "prior_ytd"), facts):
+        for edge in ("period_start", "period_end"):
+            metadata[role + "_" + edge] = fact[edge]
+    return metadata
+
+
 class FinancialCalculator:
     """CalculationPort adapter; construct with the facts for one run."""
 
@@ -43,7 +86,7 @@ class FinancialCalculator:
             existing = self.facts.get(fact["fact_id"])
             if existing is not None and existing != fact:
                 raise FactError(f"Duplicate fact ID with different content: {fact['fact_id']}")
-            self.facts[fact["fact_id"]] = fact
+            self.facts[fact["fact_id"]] = deepcopy(fact)
 
     def calculate(
         self,
@@ -59,12 +102,37 @@ class FinancialCalculator:
         missing_calcs = [cid for cid in input_calculation_ids if cid not in self.calculations]
         if missing_facts or missing_calcs:
             raise ValueError(f"Unknown calculation inputs: {missing_facts + missing_calcs}")
+        facts = [self.facts[fid] for fid in input_fact_ids]
+        calculations = [self.calculations[cid] for cid in input_calculation_ids]
+        parameters = dict(parameters)
+        metadata_error = None
+        if formula_code == "ttm_from_ytd":
+            try:
+                metadata = _ttm_metadata(facts)
+                if any(key in parameters and parameters[key] != value for key, value in metadata.items()):
+                    raise ValueError("TTM parameters conflict with source fact metadata")
+                parameters.update(metadata)
+            except ValueError as exc:
+                metadata_error = str(exc)
+        source_ids = set(input_fact_ids)
+        pending = list(input_calculation_ids)
+        visited = set()
+        while pending:
+            cid = pending.pop()
+            if cid in visited:
+                continue
+            visited.add(cid)
+            source = self.calculations.get(cid, {})
+            source_ids.update(source.get("input_fact_ids", []))
+            pending.extend(source.get("input_calculation_ids", []))
         payload = {
+            "formula_revision": "finance-tools-v2",
             "formula_code": formula_code,
             "input_fact_ids": input_fact_ids,
             "input_calculation_ids": input_calculation_ids,
-            "input_fact_values": [self.facts[fid]["value"] for fid in input_fact_ids],
-            "input_calculation_values": [self.calculations[cid]["value"] for cid in input_calculation_ids],
+            "input_facts": facts,
+            "input_calculations": calculations,
+            "source_facts": {fid: self.facts.get(fid) for fid in sorted(source_ids)},
             "parameters": parameters,
         }
         digest = hashlib.sha256(
@@ -72,16 +140,16 @@ class FinancialCalculator:
         ).hexdigest()[:20]
         calc_id = f"calc_{digest}"
         if calc_id in self.calculations:
-            return self.calculations[calc_id]
-        facts = [self.facts[fid] for fid in input_fact_ids]
-        calculations = [self.calculations[cid] for cid in input_calculation_ids]
+            return deepcopy(self.calculations[calc_id])
         unit = "CNY" if formula_code in {
-            "quarter_from_ytd", "forecast_fcf", "discounted_fcf", "terminal_value",
+            "ttm_from_ytd", "quarter_from_ytd", "forecast_fcf", "discounted_fcf", "terminal_value",
             "dcf_enterprise_value", "equity_value", "relative_equity_value",
         } else "percent" if formula_code in {"yoy", "gross_margin", "nonrecurring_gap_share"} else "times"
         value: Decimal | None = None
         reason: str | None = None
         try:
+            if metadata_error:
+                raise ValueError(metadata_error)
             value = self._evaluate(formula_code, facts, calculations, parameters)
         except (ValueError, FactError, ArithmeticError) as exc:
             reason = str(exc)
@@ -97,7 +165,7 @@ class FinancialCalculator:
             "status": "verified" if value is not None else "needs_review",
             "reason": reason,
         }
-        self.calculations[calc_id] = result
+        self.calculations[calc_id] = deepcopy(result)
         return result
 
     def _evaluate(
@@ -116,6 +184,10 @@ class FinancialCalculator:
         assert all(value is not None for value in vals + cvals)
         with localcontext() as ctx:
             ctx.prec = 40
+            if code == "ttm_from_ytd":
+                self._require_counts(code, vals, cvals, 3, 0)
+                _ttm_metadata(facts)
+                return vals[0] + vals[1] - vals[2]
             if code == "yoy":
                 self._require_counts(code, vals, cvals, 2, 0)
                 current, prior = facts
@@ -173,30 +245,47 @@ class FinancialCalculator:
                     raise ValueError("Parent net profit is zero")
                 return abs(vals[0] - vals[1]) / abs(vals[0]) * 100
             if code == "pe":
-                self._require_counts(code, vals, cvals, 2, 0)
-                market_cap, profit = facts
-                if [f["metric"] for f in facts] != ["market_cap", "net_profit_parent_ttm"]:
-                    raise ValueError("PE requires market cap and TTM parent net profit")
+                if calculations:
+                    self._require_counts(code, vals, cvals, 1, 1)
+                    profit = self._profit_calculation(calculations[0])
+                    market_cap, profit_value = facts[0], cvals[0]
+                else:
+                    self._require_counts(code, vals, cvals, 2, 0)
+                    market_cap, profit = facts
+                    profit_value = vals[1]
+                    if profit["metric"] != "net_profit_parent_ttm":
+                        raise ValueError("PE requires TTM parent net profit")
+                if market_cap["metric"] != "market_cap" or market_cap["unit"] != "CNY":
+                    raise ValueError("PE requires a CNY market cap fact")
                 if market_cap["company_code"] != profit["company_code"]:
                     raise ValueError("PE inputs refer to different companies")
-                if vals[1] <= 0 or vals[0] <= 0:
+                if profit_value <= 0 or vals[0] <= 0:
                     raise ValueError("PE is undefined for non-positive market cap or profit")
-                if date.fromisoformat(market_cap["period_end"]) != date.fromisoformat(params.get("as_of_date", "1900-01-01")):
+                if market_cap["period_end"] != params.get("as_of_date"):
                     raise ValueError("Market cap snapshot date differs from valuation date")
-                if date.fromisoformat(profit["period_end"]) > date.fromisoformat(market_cap["period_end"]):
+                if profit["period_end"] > market_cap["period_end"]:
                     raise ValueError("TTM earnings are newer than valuation date")
-                return vals[0] / vals[1]
+                self._check_profit_context(profit, params)
+                return vals[0] / profit_value
             if code == "relative_equity_value":
-                self._require_counts(code, vals, cvals, 1, 0)
-                if facts[0]["metric"] != "net_profit_parent_ttm" or vals[0] <= 0:
+                if calculations:
+                    self._require_counts(code, vals, cvals, 0, 1)
+                    profit = self._profit_calculation(calculations[0])
+                    profit_value = cvals[0]
+                else:
+                    self._require_counts(code, vals, cvals, 1, 0)
+                    profit = facts[0]
+                    profit_value = vals[0]
+                if profit["metric"] != "net_profit_parent_ttm" or profit_value <= 0:
                     raise ValueError("Relative valuation requires positive target TTM earnings")
+                self._check_profit_context(profit, params)
                 multiple = self._param(params, "multiple")
                 shock = self._param(params, "earnings_shock_percent") / 100 if "earnings_shock_percent" in params else Decimal("0")
                 if multiple <= 0:
                     raise ValueError("Selected PE multiple must be positive")
                 if shock <= -1:
                     raise ValueError("Earnings shock cannot reduce earnings to zero or below")
-                return vals[0] * (1 + shock) * multiple
+                return profit_value * (1 + shock) * multiple
             if code == "forecast_fcf":
                 self._require_counts(code, vals, cvals, 1, 0)
                 if facts[0]["metric"] != "revenue" or vals[0] < 0:
@@ -246,6 +335,35 @@ class FinancialCalculator:
                     raise ValueError("Implied equity value is below zero")
                 return equity
         raise ValueError(f"Unsupported formula_code: {code}")
+
+    def _profit_calculation(self, calc: dict[str, Any]) -> dict[str, str]:
+        if calc["formula_code"] != "ttm_from_ytd" or calc["unit"] != "CNY" or calc["input_calculation_ids"]:
+            raise ValueError("PE requires a sourced TTM profit calculation")
+        try:
+            facts = [self.facts[fid] for fid in calc["input_fact_ids"]]
+        except KeyError as exc:
+            raise ValueError("TTM source fact is unavailable") from exc
+        metadata = _ttm_metadata(facts)
+        if metadata["metric"] != "net_profit_parent_ttm":
+            raise ValueError("PE cannot substitute adjusted profit for parent profit")
+        if any(f["review_status"] != "verified" or f["value"] is None for f in facts):
+            raise ValueError("TTM source facts are missing or unverified")
+        if any(calc["parameters"].get(key) != value for key, value in metadata.items()):
+            raise ValueError("TTM calculation metadata differs from source facts")
+        with localcontext() as ctx:
+            ctx.prec = 40
+            expected = Decimal(facts[0]["value"]) + Decimal(facts[1]["value"]) - Decimal(facts[2]["value"])
+            if calc["value"] != _canonical_number(expected, "CNY"):
+                raise ValueError("TTM calculation differs from source arithmetic")
+        return metadata
+
+    @staticmethod
+    def _check_profit_context(profit: dict[str, Any], params: dict[str, Any]) -> None:
+        for key in ("company_code", "statement_scope", "period_start", "period_end"):
+            if key in params and params[key] != profit[key]:
+                raise ValueError(f"Valuation {key} differs from TTM earnings")
+        if "as_of_date" in params and date.fromisoformat(profit["period_end"]) > date.fromisoformat(params["as_of_date"]):
+            raise ValueError("TTM earnings are newer than valuation date")
 
     @staticmethod
     def _require_counts(

@@ -7,6 +7,7 @@ evaluated on real filings. The file is private run data, never a public sample.
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -29,18 +30,23 @@ _FACT_VALIDATOR = jsonschema.Draft202012Validator(
 class ReviewedFactPort:
     """EvidencePort backed by an explicit, versioned reviewer manifest."""
 
-    def __init__(self, manifest_path: str | Path, documents: Any, evidence: Any):
+    def __init__(self, manifest_path: str | Path, documents: Any, evidence: Any, *,
+                 snapshot: dict[str, Any] | None = None):
         self.manifest_path = Path(manifest_path)
         self.documents = documents
         self.evidence = evidence
+        self._snapshot = deepcopy(snapshot)
 
     def get_evidence(self, evidence_id: str) -> dict[str, Any]:
         return self.evidence.get_evidence(evidence_id)
 
     def extract_facts(self, document_ids: list[str], field_codes: list[str]) -> list[dict[str, Any]]:
-        if not self.manifest_path.is_file():
-            return []
-        payload = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        if self._snapshot is None:
+            if not self.manifest_path.is_file():
+                return []
+            payload = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        else:
+            payload = self._snapshot
         if not isinstance(payload, dict) or payload.get("version") != 1:
             raise ValueError("Reviewed fact manifest must declare version 1")
         bundles = payload.get("documents")
