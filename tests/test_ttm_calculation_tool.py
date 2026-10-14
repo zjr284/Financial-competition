@@ -141,4 +141,44 @@ class TTMToolTests(unittest.TestCase):
                 self.assertEqual(record['review_status'],'needs_review')
 
 
-if __name__=='__main__':unittest.main()
+
+
+class TTMQualityToolTests(unittest.TestCase):
+    def setUp(self):
+        data=json.loads((HERE/'inputs.json').read_text())
+        self.parent=[copy.deepcopy(next(f for f in data['facts'] if f['fact_id']==f'fact_demo_999999_{role}'))
+                     for role in ('annual','current','prior')]
+        self.adjusted=copy.deepcopy(self.parent)
+        for i,(fact,value) in enumerate(zip(self.adjusted,('40','30','20'))):
+            fact.update(fact_id=f'fact_quality_adjusted_{i}',metric='net_profit_parent_excl_nonrecurring',value=value)
+
+    def evaluate(self):
+        tool=FinancialCalculator(self.parent+self.adjusted)
+        parent=tool.calculate('ttm_from_ytd',[f['fact_id'] for f in self.parent],[],{})
+        adjusted=tool.calculate('ttm_from_ytd',[f['fact_id'] for f in self.adjusted],[],{})
+        return tool,tool.calculate('nonrecurring_gap_share',[],[parent['calculation_id'],adjusted['calculation_id']],{})
+
+    def test_ttm_quality_references_both_profit_derivations(self):
+        tool,result=self.evaluate()
+        self.assertEqual(result['value'],'58.3333')
+        self.assertEqual(result['unit'],'percent')
+        self.assertEqual(len(result['input_calculation_ids']),2)
+        self.assertEqual(result['input_fact_ids'],[])
+
+    def test_cross_company_and_restated_basis_are_rejected(self):
+        for key,value in [('company_code','999991'),('restated',True),('statement_scope','parent')]:
+            with self.subTest(key=key):
+                for fact in self.adjusted:fact[key]=value
+                self.assertEqual(self.evaluate()[1]['status'],'needs_review')
+                self.setUp()
+
+    def test_zero_parent_base_is_undefined(self):
+        for fact in self.parent:fact['value']='0'
+        self.assertEqual(self.evaluate()[1]['status'],'needs_review')
+
+    def test_unreviewed_adjusted_input_does_not_produce_gap(self):
+        self.adjusted[0]['review_status']='needs_review';self.adjusted[0]['reason']='Pending reviewer'
+        self.assertEqual(self.evaluate()[1]['status'],'needs_review')
+
+if __name__ == '__main__':
+    unittest.main()
