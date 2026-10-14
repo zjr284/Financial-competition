@@ -240,7 +240,7 @@ class ValuationTask:
         ):
             calc = context.calculations.calculate(
                 "relative_equity_value", target_fact_ids, target_calc_ids,
-                {**target_context, "multiple": _number(multiple)},
+                {**target_context, "multiple": _number(multiple), "valuation_scenario": name},
             )
             calculations.append(calc)
             record_calculation(context, calc)

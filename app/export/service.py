@@ -4,7 +4,7 @@
   * 导出不调用模型、不新增数值，只重排已有结果，保证与 API 返回逐字一致；
   * 每条导出都写 `export` 事件（含输出文件哈希），使"结果从哪来"可追溯；
   * 导出文件只引用 `evidence_id`，并附带页码与坐标，供评审回跳原文；
-  * 其它选题（非 records 结构）走通用 JSON，并在 HTML 里标注"该题无表格视图"，
+  * 估值支持计算链与固定事实快照；其它选题（非 records 结构）走通用 JSON，
     不假装支持而给出空表。
 """
 
@@ -57,6 +57,7 @@ def run_export(
     settings: Settings,
     formats: list[str],
     out_dir: Path | None = None,
+    valuation_sources: dict[str, Any] | None = None,
 ) -> ExportResult:
     """导出指定格式；返回产物清单（不含事件写入，事件由编排层负责）。"""
     wanted = [item.lower() for item in formats]
@@ -76,10 +77,16 @@ def run_export(
     if records:
         outcome.rows = len(records)
     outcome.evidence_count = len(result.get("evidence_ids", []))
-    if result.get("task_type") not in RECORD_TASKS and "csv" in wanted:
+    if result.get("task_type") not in (*RECORD_TASKS, "valuation") and "csv" in wanted:
         outcome.warnings.append(
             f"{result.get('task_type')} 不是记录型结果，CSV 仅导出通用字段；请以 JSON 为准"
         )
+
+    if result.get("task_type") == "valuation" and any(f in wanted for f in ("csv", "html")):
+        from app.export.valuation import rows_for_valuation
+        rows, problems = rows_for_valuation(result, valuation_sources)
+        outcome.rows = len(rows)
+        outcome.warnings.extend(problems)
 
     writers = {
         "json": _write_json,
@@ -87,7 +94,10 @@ def run_export(
         "html": _write_html,
     }
     for fmt in wanted:
-        path = writers[fmt](target_dir=target_dir, run_id=run_id, result=result)
+        kwargs = {"target_dir": target_dir, "run_id": run_id, "result": result}
+        if fmt != "json":
+            kwargs["valuation_sources"] = valuation_sources
+        path = writers[fmt](**kwargs)
         payload = path.read_bytes()
         outcome.formats.append(fmt)
         outcome.files.append(str(path))
@@ -114,9 +124,19 @@ def _write_json(*, target_dir: Path, run_id: str, result: dict[str, Any]) -> Pat
 # ---------------------------------------------------------------- CSV
 
 
-def _write_csv(*, target_dir: Path, run_id: str, result: dict[str, Any]) -> Path:
+def _write_csv(*, target_dir: Path, run_id: str, result: dict[str, Any],
+               valuation_sources: dict[str, Any] | None = None) -> Path:
     """记录型结果展开为字段矩阵：一字段一行，便于用 Excel 逐项核对。"""
     path = target_dir / "records.csv"
+    if result.get("task_type") == "valuation":
+        from app.export.valuation import COLUMNS, csv_cell, rows_for_valuation
+        rows, _ = rows_for_valuation(result, valuation_sources)
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(COLUMNS)
+        writer.writerows([[csv_cell(row[c]) for c in COLUMNS] for row in rows])
+        path.write_text(buffer.getvalue(), encoding="utf-8-sig", newline="")
+        return path
     data = result.get("data") or {}
     records = data.get("records") if isinstance(data, dict) else None
 
@@ -170,12 +190,16 @@ def _write_csv(*, target_dir: Path, run_id: str, result: dict[str, Any]) -> Path
 # ---------------------------------------------------------------- HTML
 
 
-def _write_html(*, target_dir: Path, run_id: str, result: dict[str, Any]) -> Path:
+def _write_html(*, target_dir: Path, run_id: str, result: dict[str, Any],
+                valuation_sources: dict[str, Any] | None = None) -> Path:
     """人读报告：按记录分组展示字段与来源，缺失字段显式标红说明。"""
     path = target_dir / "report.html"
     data = result.get("data") or {}
     records = data.get("records") if isinstance(data, dict) else None
 
+    banner = ("本报告整理本次估值运行结果；工具核算不替代人工复核，资料与适用范围请结合运行说明确认。"
+              if result.get("task_type") == "valuation" else
+              "本报告为接口演示样例输出，不是竞赛实测成果；数值与证据一一对应，缺失字段已显式标注。")
     parts: list[str] = [
         "<!DOCTYPE html>",
         '<html lang="zh-CN"><head><meta charset="utf-8">',
@@ -191,7 +215,7 @@ def _write_html(*, target_dir: Path, run_id: str, result: dict[str, Any]) -> Pat
         "code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}",
         "</style></head><body>",
         f"<h1>运行报告</h1>",
-        '<p class="banner">本报告为接口演示样例输出，不是竞赛实测成果；数值与证据一一对应，缺失字段已显式标注。</p>',
+        f'<p class="banner">{html.escape(banner)}</p>',
         "<table><tbody>",
     ]
     for label, key in (
@@ -212,7 +236,10 @@ def _write_html(*, target_dir: Path, run_id: str, result: dict[str, Any]) -> Pat
     parts.append(f"<tr><th>evidence 数</th><td>{len(result.get('evidence_ids', []))}</td></tr>")
     parts.append("</tbody></table>")
 
-    if records:
+    if result.get("task_type") == "valuation":
+        from app.export.valuation import html_for_valuation
+        parts.append(html_for_valuation(result, valuation_sources))
+    elif records:
         parts.append("<h2>提取记录与来源</h2>")
         for record in records:
             parts.append(

@@ -19,7 +19,7 @@ def prepare_ttm_inputs(context, facts, scope, as_of):
                       and f["metric"] == "net_profit_parent" and f["statement_scope"] == scope
                       and f["period_type"] == "cumulative" and f["review_status"] != "rejected"
                       and f["period_end"] <= as_of
-                      and f["period_end"][5:] in {"03-31", "06-30", "09-30"}
+                      and f["period_end"][5:] in {"03-31", "06-30", "09-30", "12-31"}
                       and f["period_start"] == f["period_end"][:4] + "-01-01"]
         if not candidates:
             continue

@@ -1,5 +1,8 @@
 """A/B production run, immutable sources, JSON export and offline replay."""
 import json
+import csv
+import pytest
+from app.errors import AppError
 import hashlib
 from pathlib import Path
 
@@ -57,10 +60,33 @@ def test_production_ttm_run_export_replay_and_pinned_review_snapshot(app, tmp_pa
     json_file=next(Path(p) for p in export['files'] if p.endswith('.json'))
     exported=json.loads(json_file.read_text())
     assert exported['result']==result
+    csv_file=next(Path(p) for p in export['files'] if p.endswith('.csv'))
+    rows=list(csv.DictReader(csv_file.read_text(encoding='utf-8-sig').splitlines()))
+    originals=[r for r in rows if r['kind']=='原始事实（运行快照）']
+    assert len(originals)==15
+    assert all('sha256=' in r['sources'] and 'bbox=' in r['sources'] for r in originals)
+    ranges=[r for r in rows if r['kind']=='估值结果（计算得出）']
+    assert [r['value'] for r in ranges]==['1200','1500','2400']
+    assert all(r['input_calculation_ids'] for r in ranges)
+    assert all(r['chain_status']=='references_preserved' for r in rows)
+    html_file=next(Path(p) for p in export['files'] if p.endswith('.html'))
+    assert '计算得出' in html_file.read_text() and '无表格视图' not in html_file.read_text()
     replay=app.orchestrator.replay(run['run_id'])
     assert replay['result_hash_match'] and replay['trace_match']
+    original_export_hashes=export['hashes']
     manifest.write_text('{"version": 1, "documents": []}')
     replay=app.orchestrator.replay(run['run_id'])
     assert replay['result_hash_match'] and replay['trace_match']
+    pinned_export=app.export_run(run['run_id'],formats=['csv','html'])
+    for filename,sha in pinned_export['hashes'].items():
+        assert sha==original_export_hashes[filename]
+    assert str(app.settings.data_dir) not in json.dumps(app.get_events(run['run_id']))
+    snapshot=app.settings.runs_dir/run['run_id']/'b-reviewed-facts.json'
+    payload=json.loads(snapshot.read_text());payload['documents'][0]['facts'][0]['value']='9999'
+    snapshot.write_text(json.dumps(payload))
+    with pytest.raises(AppError,match='快照或来源版本不匹配'):
+        app.export_run(run['run_id'],formats=['csv','html'])
+    # Raw result JSON remains exportable; it does not read or rewrite source facts.
+    assert app.export_run(run['run_id'],formats=['json'])['formats']==['json']
     fresh=app.run_task(request)
     assert app.get_result(fresh['run_id'])['data']['valuation_range']['base'] is None

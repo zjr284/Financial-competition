@@ -91,6 +91,20 @@ class TTMValuationTests(unittest.TestCase):
         self.assertTrue(any(c['formula_code']=='pe' and c['status']=='needs_review'
                             for c in result['calculations']))
 
+    def test_year_end_ytd_uses_previous_annual_as_prior(self):
+        self.data['facts']=[f for f in self.data['facts'] if not f['fact_id'].endswith('_prior')]
+        for f in self.data['facts']:
+            if f['fact_id'].endswith('_current'):f['period_end']='2026-12-31'
+            if f['metric']=='market_cap':f.update(period_start='2027-03-31',period_end='2027-03-31')
+        self.data['task_input']['as_of_date']='2027-03-31'
+        result=run_demo(self.data);self.validate(result)
+        self.assertIsNotNone(result['data']['valuation_range']['base'])
+        target=next(c for c in result['calculations'] if c['formula_code']=='ttm_from_ytd'
+                    and c['parameters']['company_code']=='999999')
+        self.assertEqual(target['value'],'60')
+        self.assertEqual(target['input_fact_ids'][0],target['input_fact_ids'][2])
+        self.assertEqual(target['parameters']['period_start'],'2026-01-01')
+
     def test_source_files_are_fixed_and_contract_valid(self):
         import hashlib
         for kind,key in [('Fact','facts'),('Evidence','evidence'),('Document','documents')]:

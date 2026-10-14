@@ -324,7 +324,7 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_4b2895776c7c4e4ad64a",
+      "calculation_id": "calc_7f0ac4920372dbcedcd5",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
@@ -336,7 +336,8 @@
         "period_start": "2025-07-01",
         "period_end": "2026-06-30",
         "as_of_date": "2026-09-30",
-        "multiple": "10"
+        "multiple": "10",
+        "valuation_scenario": "low"
       },
       "value": "1200",
       "unit": "CNY",
@@ -345,7 +346,7 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_898a2ea4fdc25635cd8f",
+      "calculation_id": "calc_ce875de06b237d18d168",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
@@ -357,7 +358,8 @@
         "period_start": "2025-07-01",
         "period_end": "2026-06-30",
         "as_of_date": "2026-09-30",
-        "multiple": "12.5"
+        "multiple": "12.5",
+        "valuation_scenario": "base"
       },
       "value": "1500",
       "unit": "CNY",
@@ -366,7 +368,7 @@
       "reason": null
     },
     {
-      "calculation_id": "calc_907f2fd52abc5af00389",
+      "calculation_id": "calc_d8049b1426b7b5d9ca22",
       "formula_code": "relative_equity_value",
       "input_fact_ids": [],
       "input_calculation_ids": [
@@ -378,7 +380,8 @@
         "period_start": "2025-07-01",
         "period_end": "2026-06-30",
         "as_of_date": "2026-09-30",
-        "multiple": "20"
+        "multiple": "20",
+        "valuation_scenario": "high"
       },
       "value": "2400",
       "unit": "CNY",
