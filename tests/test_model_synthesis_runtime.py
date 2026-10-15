@@ -102,6 +102,24 @@ def test_inline_citation_restoration_does_not_modify_literal_extraction_raw_valu
     assert output['fields'][0] == {'raw_value': '[ev_model_0001]', 'evidence_ids': ['ev_synthetic']}
 
 
+@pytest.mark.parametrize('alias', ['ev_model_0001', '[ev_model_0001]', '(ev_model_0001)'])
+def test_display_aliases_restore_bare_bracketed_and_assumption_sources(alias):
+    from app.models.remote import _restore_sources
+    item = {'impact_text': '来源 '+alias, 'assumptions': ['来源 '+alias],
+            'limitations': ['来源 '+alias], 'evidence_ids': ['ev_model_0001']}
+    _restore_sources(item, {'ev_model_0001':'ev_original'})
+    assert 'ev_model_' not in json.dumps(item)
+    assert item['evidence_ids'] == ['ev_original']
+
+
+@pytest.mark.parametrize('alias', ['ev_model_0002', 'ev_model_unknown'])
+def test_display_aliases_must_be_valid_and_declared_by_the_statement(alias):
+    from app.models.remote import _restore_sources
+    with pytest.raises(ValueError):
+        _restore_sources({'impact_text':alias,'evidence_ids':['ev_model_0001']},
+                         {'ev_model_0001':'ev_original','ev_model_0002':'ev_other'})
+
+
 @pytest.fixture
 def runtime(tmp_path, monkeypatch, model_server):
     monkeypatch.setenv('FINSCOPE_MODEL_BACKEND', 'remote-json')

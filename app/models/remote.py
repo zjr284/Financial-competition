@@ -63,13 +63,21 @@ def _restore_sources(value, reverse):
         for key, child in value.items():
             if key == 'evidence_ids':
                 continue
-            if key in {'text', 'mechanism', 'impact_text'} and isinstance(child, str):
+            if key in {'text', 'mechanism', 'impact_text', 'assumptions', 'limitations'}:
                 def citation(match):
                     alias = match.group(1)
                     if alias not in reverse or alias not in declared:
                         raise ValueError('Inline source was not declared by this statement')
-                    return '[' + reverse[alias] + ']'
-                value[key] = re.sub(r'\[(ev_model_[0-9]+)\]', citation, child)
+                    return reverse[alias]
+                def restore(text):
+                    restored = re.sub(r'\b(ev_model_[0-9]+)\b', citation, text)
+                    if re.search(r'\bev_model_[A-Za-z0-9_]+', restored):
+                        raise ValueError('Unresolved source alias in display text')
+                    return restored
+                if isinstance(child, str):
+                    value[key] = restore(child)
+                elif isinstance(child, list):
+                    value[key] = [restore(item) if isinstance(item, str) else item for item in child]
             else:
                 _restore_sources(child, reverse)
     elif isinstance(value, list):
