@@ -37,8 +37,18 @@ export function valuationView(result, source = null) {
     ...calc,
     label:
       calc.formula_code === "ttm_from_ytd"
-        ? "工具计算的滚动12个月利润"
-        : "工具计算：" + calc.formula_code,
+        ? "工具计算的滚动12个月利润" +
+          (calc.parameters.metric === "net_profit_parent_ttm"
+            ? "（归母）"
+            : calc.parameters.metric ===
+                "net_profit_parent_excl_nonrecurring_ttm"
+              ? "（扣非归母）"
+              : "")
+        : calc.formula_code === "nonrecurring_gap_amount"
+          ? "归母减扣非差额（有符号）"
+          : calc.formula_code === "nonrecurring_gap_share"
+            ? "归母与扣非差额占比（绝对值）"
+            : "工具计算：" + calc.formula_code,
     period:
       calc.parameters.period_start && calc.parameters.period_end
         ? `${calc.parameters.period_start} 至 ${calc.parameters.period_end}`
@@ -71,7 +81,14 @@ export function exportRows(view) {
   const rows = [];
   const label = view.sample ? "接口演示样例，全部虚构" : "实际运行";
   const range = view.result.data.valuation_range;
-  for (const name of ["low", "base", "high"])
+  for (const name of ["low", "base", "high"]) {
+    const candidates = view.entries.filter(
+      (entry) =>
+        entry.parameters.valuation_scenario === name &&
+        entry.status === "verified" &&
+        entry.value === range[name],
+    );
+    const calculation = candidates.length === 1 ? candidates[0] : null;
     rows.push({
       context: label,
       kind: "估值结果（计算得出）",
@@ -81,11 +98,15 @@ export function exportRows(view) {
       unit: range.unit,
       period: view.result.data.as_of_date,
       status: view.result.status,
-      reason: range.reason || "",
+      reason:
+        range.reason || (calculation ? "" : "未读取唯一的估值场景计算引用"),
       input_fact_ids: "",
-      input_calculation_ids: "",
+      input_calculation_ids: calculation?.calculation_id || "",
+      parameters: calculation ? JSON.stringify(calculation.parameters) : "",
+      evidence_ids: view.result.evidence_ids.join(" | "),
       sources: "",
     });
+  }
   for (const entry of view.entries) {
     rows.push({
       context: label,
@@ -99,6 +120,7 @@ export function exportRows(view) {
       reason: entry.reason || "",
       input_fact_ids: entry.input_fact_ids.join(" | "),
       input_calculation_ids: entry.input_calculation_ids.join(" | "),
+      parameters: JSON.stringify(entry.parameters),
       sources: "",
     });
     for (const input of entry.inputs)
@@ -116,6 +138,7 @@ export function exportRows(view) {
         reason: input.fact?.reason || "",
         input_fact_ids: "",
         input_calculation_ids: "",
+        evidence_ids: (input.fact?.evidence_ids || []).join(" | "),
         sources: input.sources
           .map(
             (source) =>
@@ -124,6 +147,23 @@ export function exportRows(view) {
           .join(" | "),
       });
   }
+  for (const warning of view.result.warnings || [])
+    rows.push({
+      context: label,
+      kind: "运行警告",
+      status: view.result.status,
+      reason: warning,
+      evidence_ids: view.result.evidence_ids.join(" | "),
+    });
+  for (const review of view.result.review_items || [])
+    rows.push({
+      context: label,
+      kind: "人工复核项",
+      id: review.review_id,
+      status: review.status,
+      reason: review.reason,
+      evidence_ids: review.evidence_ids.join(" | "),
+    });
   for (const problem of view.problems)
     rows.push({
       context: label,
@@ -140,6 +180,20 @@ export function exportRows(view) {
       sources: "",
     });
   return rows.map((row) => ({
+    context: label,
+    kind: "",
+    id: "",
+    formula: "",
+    value: "",
+    unit: "",
+    period: "",
+    status: "",
+    reason: "",
+    input_fact_ids: "",
+    input_calculation_ids: "",
+    parameters: "",
+    evidence_ids: "",
+    sources: "",
     ...row,
     chain_status: view.problems.length
       ? "needs_review"

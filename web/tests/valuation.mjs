@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { chromium } from "playwright";
-import { valuationView, valuationCSV, valuationHTML } from "../valuation.js";
+import {
+  valuationView,
+  exportRows,
+  valuationCSV,
+  valuationHTML,
+} from "../valuation.js";
 import { localSite } from "./local-site.mjs";
 
 const data = JSON.parse(await fs.readFile("demo.json", "utf8"));
@@ -13,6 +18,75 @@ assert.equal(
   4,
 );
 assert.deepEqual(model.problems, []);
+assert.ok(
+  model.entries
+    .filter((entry) => entry.formula_code === "ttm_from_ytd")
+    .every((entry) => entry.label.includes("归母")),
+);
+const adjustedLabel = structuredClone(success);
+adjustedLabel.calculations.find(
+  (entry) => entry.formula_code === "ttm_from_ytd",
+).parameters.metric = "net_profit_parent_excl_nonrecurring_ttm";
+assert.ok(
+  valuationView(adjustedLabel).entries.some((entry) =>
+    entry.label.includes("扣非归母"),
+  ),
+);
+const rows = exportRows(model);
+for (const name of ["low", "base", "high"]) {
+  const row = rows.find(
+    (item) => item.kind === "估值结果（计算得出）" && item.id === name,
+  );
+  const calculation = success.calculations.find(
+    (item) => item.parameters.valuation_scenario === name,
+  );
+  if (calculation)
+    assert.equal(row.input_calculation_ids, calculation.calculation_id);
+  else assert.match(row.reason, /未读取唯一/);
+}
+for (const calculation of success.calculations) {
+  const row = rows.find(
+    (item) =>
+      item.kind === "计算得出" && item.id === calculation.calculation_id,
+  );
+  assert.deepEqual(JSON.parse(row.parameters), calculation.parameters);
+}
+const reviewed = structuredClone(success);
+reviewed.warnings.push(
+  "Earnings sustainability and historical version need review",
+);
+reviewed.review_items.push({
+  review_id: "review_export_warning",
+  target_id: success.run_id,
+  status: "pending",
+  reason: "Do not treat snapshot adoption as valuation approval",
+  evidence_ids: ["ev_export_source"],
+});
+const reviewedRows = exportRows(valuationView(reviewed));
+assert.ok(
+  reviewedRows.some(
+    (row) => row.kind === "运行警告" && row.reason === reviewed.warnings.at(-1),
+  ),
+);
+assert.ok(
+  reviewedRows.some(
+    (row) =>
+      row.kind === "人工复核项" && row.evidence_ids === "ev_export_source",
+  ),
+);
+assert.ok(
+  valuationCSV(valuationView(reviewed)).includes(reviewed.warnings.at(-1)),
+);
+assert.ok(
+  valuationCSV(valuationView(reviewed)).includes(
+    reviewed.review_items.at(-1).reason,
+  ),
+);
+assert.ok(
+  valuationHTML(valuationView(reviewed)).includes(
+    reviewed.review_items.at(-1).reason,
+  ),
+);
 const malformed = structuredClone(success);
 malformed.calculations[0].input_calculation_ids.push("calc_missing");
 assert.ok(
