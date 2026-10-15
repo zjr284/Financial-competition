@@ -317,6 +317,15 @@ def test_rebinding_semantic_company_is_rejected_without_changing_manifest(runtim
     assert runtime.manifest.read_bytes() == before
 
 
+def test_alternative_excerpt_ports_cannot_bypass_owner_checks_with_a_different_kind():
+    from app.tasks.synthesis_sources import sources
+    for kind in ['archived_excerpt', 'other', None]:
+        port = SimpleNamespace(extract_facts=lambda *args: [], archived_excerpts=lambda *args: [
+            {'source_kind': kind, 'text': 'Unclassified source', 'evidence_ids': ['ev_unclassified']}])
+        context = SimpleNamespace(document_ids=['doc_synthetic'], evidence=port)
+        assert sources(context, company='999999') == []
+
+
 def test_model_extraction_runs_through_http_and_cold_offline_replay(runtime, model_server, monkeypatch):
     from dataclasses import replace
     settings = replace(runtime.settings, extraction_backend='model')

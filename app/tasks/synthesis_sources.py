@@ -8,7 +8,8 @@ def sources(context, *, company=None, as_of_date=None, financial=False):
     items = context.evidence.extract_facts(list(context.document_ids), codes)
     excerpts = getattr(context.evidence, 'archived_excerpts', None)
     if callable(excerpts):
-        items += excerpts(list(context.document_ids))
+        items += [{**item, 'source_kind': 'archived_excerpt_needs_review'}
+                  for item in excerpts(list(context.document_ids))]
     selected = []
     for item in items:
         if item.get('source_kind') == 'archived_excerpt_needs_review':

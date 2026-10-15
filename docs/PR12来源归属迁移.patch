@@ -1,0 +1,22 @@
+--- a/demo/synthesis_live.py
++++ b/demo/synthesis_live.py
+@@ -59,7 +59,7 @@
+         eid = eids[1]
+         manifest = app.settings.data_dir / "reviewed_facts.json"
+         init_manifest(app, manifest, [document["document_id"]])
+-        for source_id in eids: register_excerpt(app, manifest, document["document_id"], source_id)
++        for source_id in eids: register_excerpt(app, manifest, document["document_id"], source_id, company_code="999999")
+         install_role_b(app, manifest)
+         prepare()
+         api = ApiServer(app, port=0).start(background=True)
+--- a/demo/synthesis_fixtures.py
++++ b/demo/synthesis_fixtures.py
+@@ -50,7 +50,7 @@
+         (InvestmentMemoTask(), {"company_code": "999999", "as_of_date": "2026-09-30"}, False),
+     ]:
+         port = SimpleNamespace(get_evidence=lambda eid: evidence, extract_facts=lambda ids, fields: [],
+-                               archived_excerpts=lambda ids: [{"source_kind": "archived_excerpt", "text": evidence["text"], "evidence_ids": [evidence["evidence_id"]]}] if available else [])
++                               archived_excerpts=lambda ids: [{"source_kind": "archived_excerpt", "source_scope": "company", "company_code": "999999", "text": evidence["text"], "evidence_ids": [evidence["evidence_id"]]}] if available else [])
+         context = TaskContext("run_demo_" + plugin.task_type + ("_empty" if not available else ""), (document["document_id"],),
+                               SimpleNamespace(get_document=lambda did: document), port, FinancialCalculator(), FixtureModel(),
+                               SimpleNamespace(append_event=lambda rid, event: None))
