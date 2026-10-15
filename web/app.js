@@ -99,6 +99,7 @@ function reset() {
   state.poll = null;
   $("stop").disabled = true;
   $("run").disabled = false;
+  $("load-existing").disabled = false;
   state.urls.forEach(URL.revokeObjectURL);
   state.urls = [];
   state.result = null;
@@ -196,6 +197,7 @@ $("more-events").onclick = async () => {
 };
 function evidenceButton(eid, label) {
   const b = node("button", label);
+  b.dataset.evidenceId = eid;
   b.onclick = () => showEvidence(eid).catch(reportError);
   return b;
 }
@@ -918,6 +920,44 @@ $("upload-button").onclick = async () => {
     status("文件已登记：" + doc.document_id);
   } catch (e) {
     reportError(e);
+  }
+};
+$("load-existing").onclick = async () => {
+  let epoch;
+  try {
+    const runId = $("saved-run-id").value.trim();
+    if (!/^run_[A-Za-z0-9_-]+$/.test(runId))
+      throw new Error("填写有效的已有 run_id");
+    setBase();
+    reset();
+    epoch = state.epoch;
+    $("load-existing").disabled = true;
+    status("正在读取已有运行：" + runId);
+    const run = await jsonRequest("/runs/" + encodeURIComponent(runId));
+    if (epoch !== state.epoch) return;
+    if (run.run_id !== runId) throw new Error("返回运行 ID 与请求不一致");
+    if (!["succeeded", "needs_review"].includes(run.status)) {
+      await loadEvents(run, epoch);
+      if (epoch !== state.epoch) return;
+      status(
+        `已有运行：${labels[run.status] || run.status}；尚无可读取的完成结果。`,
+      );
+      return;
+    }
+    const result = await jsonRequest(
+      `/runs/${encodeURIComponent(runId)}/result`,
+    );
+    if (epoch !== state.epoch) return;
+    if (result.run_id !== runId || result.task_type !== run.task_type)
+      throw new Error("结果与已有运行不一致");
+    render(result);
+    $("mode-badge").textContent = "团队 API · 已有运行结果";
+    $("connection").textContent = "已读取归档结果，未启动新任务或调用模型";
+    await loadEvents(run, epoch);
+  } catch (error) {
+    if (epoch === undefined || epoch === state.epoch) reportError(error);
+  } finally {
+    if (epoch === state.epoch) $("load-existing").disabled = false;
   }
 };
 $("run").onclick = async () => {

@@ -29,6 +29,11 @@
         ><button id="health">检查连接</button>
         <p>跨域部署时由 A 配置 CORS；同源服务直接使用 /api/v1。</p>
         <label
+          >已有运行 ID<input id="saved-run-id" placeholder="run_…"
+        /></label>
+        <button id="load-existing">读取已有结果</button>
+        <p>读取归档结果与来源，不启动新任务；查看交接包时使用此入口。</p>
+        <label
           >上传资料（PDF / TXT / CSV / XLSX）<input
             type="file"
             id="upload"

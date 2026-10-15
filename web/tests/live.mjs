@@ -284,6 +284,31 @@ try {
     assert.deepEqual(await stored.json(), result);
     await pause();
   }
+  // 交接包只能读取既有结果，不能通过重新执行来冒充旧 Run。
+  const mutations = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith(api) && request.method() !== "GET")
+      mutations.push(request.method());
+  });
+  await page.locator("#saved-run-id").fill(results[0].run_id);
+  await page.locator("#load-existing").click();
+  await page
+    .locator("#mode-badge")
+    .filter({ hasText: "已有运行结果" })
+    .waitFor();
+  await page.waitForFunction(
+    () => !document.getElementById("load-existing").disabled,
+  );
+  assert.deepEqual(
+    JSON.parse(await page.locator("#raw").textContent()),
+    results[0],
+  );
+  assert.deepEqual(mutations, []);
+  await page.locator("#saved-run-id").fill("run_notfound");
+  await page.locator("#load-existing").click();
+  await page.locator("#status").filter({ hasText: "操作失败" }).waitFor();
+  assert.equal(await page.locator("#export").isDisabled(), true);
+  assert.deepEqual(mutations, []);
   assert.deepEqual(errors, []);
   const video = page.video();
   await context.close();
