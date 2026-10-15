@@ -1,0 +1,18 @@
+{
+  "task_type": "investment_memo",
+  "edits": [
+    {
+      "operation": "append_source",
+      "path": [
+        "evidence",
+        0,
+        "evidence_ids"
+      ],
+      "expected_sources": [
+        "header",
+        "first_line"
+      ],
+      "source": "continuation"
+    }
+  ]
+}
