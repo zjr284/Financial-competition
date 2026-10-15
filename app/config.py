@@ -12,6 +12,7 @@
   FINSCOPE_MODEL_REVISION 模型修订号
   FINSCOPE_PROMPT_VERSION 提示词版本
   FINSCOPE_CODE_VERSION  代码版本
+  FINSCOPE_EXTRACTION_BACKEND rules（默认）或 model（显式模型候选）
 """
 
 from __future__ import annotations
@@ -66,6 +67,7 @@ class Settings:
     model_revision: str = field(default_factory=lambda: os.environ.get("FINSCOPE_MODEL_REVISION", "v1"))
     prompt_version: str = field(default_factory=lambda: os.environ.get("FINSCOPE_PROMPT_VERSION", "prompt-v1"))
     code_version: str = field(default_factory=lambda: os.environ.get("FINSCOPE_CODE_VERSION", "member-a-0.1.0"))
+    extraction_backend: str = field(default_factory=lambda: os.environ.get("FINSCOPE_EXTRACTION_BACKEND", "rules"))
     # 归一化坐标系：契约规定 0—1000
     norm_scale: int = 1000
     # 行合并容差（PDF 用户空间单位）

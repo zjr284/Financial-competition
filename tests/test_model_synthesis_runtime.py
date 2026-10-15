@@ -31,7 +31,9 @@ def model_server():
             eid = user['evidence_ids'][0]
             statement = {'text': '需求变化可能影响交付节奏', 'kind': 'inference', 'evidence_ids': [eid],
                          'assumptions': ['其他条件保持不变'], 'limitations': ['需分析员复核适用性']}
-            if user['schema_name'] == 'IndustryData':
+            if user['schema_name'] == 'ExtractionData':
+                output = state.extraction_output(user)
+            elif user['schema_name'] == 'IndustryData':
                 output = {'nodes': [{'node_id': 'upstream', 'name': '材料', 'stage': 'upstream'},
                                     {'node_id': 'company', 'name': '目标', 'stage': 'company'}],
                           'edges': [{'from_id': 'upstream', 'to_id': 'company', 'mechanism': '供需传导',
@@ -75,7 +77,7 @@ def runtime(tmp_path, monkeypatch, model_server):
                               disclosure_date='2026-08-01')
     evidence_id = app.parse_document(doc['document_id'])['evidence_ids'][0]
     attach_document(app, manifest, doc['document_id'])
-    register_excerpt(app, manifest, doc['document_id'], evidence_id)
+    register_excerpt(app, manifest, doc['document_id'], evidence_id, company_code='999999')
     install_role_b(app, manifest)
     try:
         yield SimpleNamespace(app=app, manifest=manifest, doc=doc, eid=evidence_id, settings=settings)
@@ -210,7 +212,7 @@ def test_memo_does_not_send_late_or_undated_excerpt(tmp_path, monkeypatch, model
         manifest = tmp_path / 'reviewed_facts.json'; init_manifest(app, manifest, [])
         doc = app.upload_document('source.txt', b'Synthetic only.', disclosure_date=disclosure)
         eid = app.parse_document(doc['document_id'])['evidence_ids'][0]
-        attach_document(app, manifest, doc['document_id']); register_excerpt(app, manifest, doc['document_id'], eid)
+        attach_document(app, manifest, doc['document_id']); register_excerpt(app, manifest, doc['document_id'], eid, company_code='999999')
         install_role_b(app, manifest)
         runtime = SimpleNamespace(app=app, doc=doc)
         assert run(runtime, 'investment_memo')['status'] == 'needs_review'
@@ -222,7 +224,7 @@ def test_memo_does_not_send_late_or_undated_excerpt(tmp_path, monkeypatch, model
 def test_semantic_registration_does_not_promote_or_invent_facts(runtime):
     data = json.loads(runtime.manifest.read_text())
     assert data['documents'][0]['facts'] == [] and not data.get('review_history')
-    assert register_excerpt(runtime.app, runtime.manifest, runtime.doc['document_id'], runtime.eid)['selected']
+    assert register_excerpt(runtime.app, runtime.manifest, runtime.doc['document_id'], runtime.eid, company_code='999999')['selected']
     port = ReviewedFactPort(runtime.manifest, runtime.app.documents, runtime.app.parse)
     assert port.extract_facts([runtime.doc['document_id']], ['industry_event']) == []
     assert len(port.archived_excerpts([runtime.doc['document_id']])) == 1
@@ -290,3 +292,61 @@ def test_command_runs_and_replays_the_same_pinned_response(runtime, monkeypatch,
     assert main(common + ['replay', summary['run_id']]) == 0
     assert json.loads(capsys.readouterr().out)['replay_ok']
     assert len(model_server.requests) == 1
+
+
+@pytest.mark.parametrize('task', ['industry_impact', 'investment_memo'])
+@pytest.mark.parametrize('scope,owner,included', [('company', '888888', False), ('industry', None, True), ('unclassified', None, False)])
+def test_semantic_scope_filters_peers_and_unclassified_sources(runtime, model_server, task, scope, owner, included):
+    extra = runtime.app.upload_document('other.txt', b'EXTRA_SCOPE_SENTINEL', disclosure_date='2026-08-01')
+    eid = runtime.app.parse_document(extra['document_id'])['evidence_ids'][0]
+    attach_document(runtime.app, runtime.manifest, extra['document_id'])
+    register_excerpt(runtime.app, runtime.manifest, extra['document_id'], eid, company_code=owner, scope=scope)
+    task_input = ({'focus_company_code': '999999', 'event_description': 'test', 'scenario_ids': ['base']}
+                  if task == 'industry_impact' else {'company_code': '999999', 'as_of_date': '2026-09-30'})
+    outcome = runtime.app.run_task({'api_version': '1.0.0', 'task_type': task,
+        'document_ids': [runtime.doc['document_id'], extra['document_id']], 'task_input': task_input})
+    assert outcome['status'] == 'needs_review'
+    body = model_server.requests[0][0]
+    assert ('EXTRA_SCOPE_SENTINEL' in json.dumps(body)) is included
+
+
+def test_rebinding_semantic_company_is_rejected_without_changing_manifest(runtime):
+    before = runtime.manifest.read_bytes()
+    with pytest.raises(ValueError, match='reassign'):
+        register_excerpt(runtime.app, runtime.manifest, runtime.doc['document_id'], runtime.eid, company_code='888888')
+    assert runtime.manifest.read_bytes() == before
+
+
+def test_model_extraction_runs_through_http_and_cold_offline_replay(runtime, model_server, monkeypatch):
+    from dataclasses import replace
+    settings = replace(runtime.settings, extraction_backend='model')
+    app = build_app(settings)
+    try:
+        doc = app.upload_document('synthetic-pledge.txt',
+            '证券代码：999999\n质押公告\n公告日期：2026年9月22日\n股东名称：张某\n本次质押股数：12万股'.encode())
+        def output(user):
+            refs = user['evidence_ids']
+            fields = [{'field_code': code, 'raw_value': value, 'value': '999999', 'unit': 'none',
+                       'evidence_ids': refs, 'status': 'verified', 'reason': None}
+                      for code, value in [('company_code', '999999'), ('event_date', '2026年9月22日'),
+                                           ('shareholder', '张某'), ('pledged_shares', '12万股')]]
+            return {'records': [{'event_id': 'model_event', 'document_id': 'doc_model_0001',
+                                'company_code': '999999', 'event_date': None,
+                                'announcement_type': 'pledge', 'fields': fields}]}
+        model_server.extraction_output = output
+        outcome = app.run_task({'api_version': '1.0.0', 'task_type': 'structured_extraction',
+            'document_ids': [doc['document_id']], 'task_input': {'announcement_types': ['pledge']}})
+        assert outcome['status'] == 'needs_review'
+        result = app.get_result(outcome['run_id'])
+        field = next(f for f in result['data']['records'][0]['fields'] if f['field_code'] == 'pledged_shares')
+        assert field['value'] == '120000' and field['status'] == 'needs_review'
+        assert doc['document_id'] not in json.dumps(model_server.requests[0][0])
+        app.close()
+        monkeypatch.setenv('FINSCOPE_MODEL_BACKEND', 'offline-rule')
+        monkeypatch.delenv('FINSCOPE_MODEL_ENDPOINT')
+        app = build_app(settings)
+        proof = app.orchestrator.replay(outcome['run_id'])
+        assert proof['input_hash_match'] and proof['result_hash_match'] and proof['trace_match'] and proof['chain']['ok']
+        assert len(model_server.requests) == 1
+    finally:
+        app.close()

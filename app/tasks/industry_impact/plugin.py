@@ -18,7 +18,7 @@ class IndustryImpactTask:
     task_type = "industry_impact"
 
     def run(self, context: TaskContext, task_input: dict[str, Any]) -> dict[str, Any]:
-        source_items = sources(context)
+        source_items = sources(context, company=task_input['focus_company_code'])
         known_ids = unique(
             evidence_id
             for item in source_items
@@ -43,7 +43,13 @@ class IndustryImpactTask:
                 "event_description": task_input["event_description"],
                 "scenario_ids": task_input["scenario_ids"],
                 "source_items": source_items,
-                "instructions": "Use only archived evidence IDs; distinguish observed facts from hypothetical transmission paths.",
+                "instructions_version": "industry-scoped-sources-v2",
+                "instructions": (
+                    "Use only archived evidence IDs; distinguish observed facts from hypothetical transmission paths. "
+                    "Respect the company and product scope of each excerpt. Attribute management self-assessments "
+                    "to their report, not to independent verification. disclosure_date is publication date, "
+                    "not the reporting period. An older strategic intention does not prove later execution."
+                ),
             },
         )
         validate_task_data("IndustryData", data)

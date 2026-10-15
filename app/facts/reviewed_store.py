@@ -60,6 +60,12 @@ class ReviewedFactPort:
             ids = bundle.get("semantic_evidence_ids", [])
             if not isinstance(ids, list) or len(ids) > 16:
                 raise ValueError("At most 16 explicit excerpts per document")
+            scope = bundle.get('semantic_scope', 'unclassified')
+            company = bundle.get('semantic_company_code')
+            if scope not in {'company', 'industry', 'unclassified'} or (scope == 'company') != bool(company):
+                raise ValueError('Invalid semantic source scope')
+            if company is not None and (not isinstance(company, str) or len(company) != 6 or not company.isascii() or not company.isdigit()):
+                raise ValueError('Invalid semantic company code')
             for evidence_id in ids:
                 if not isinstance(evidence_id, str) or evidence_id in seen:
                     raise ValueError("Invalid or repeated semantic evidence ID")
@@ -68,6 +74,8 @@ class ReviewedFactPort:
                 if source["document_id"] != document_id or not source["text"].strip():
                     raise ValueError("Semantic evidence does not belong to its source")
                 selected.append({"source_kind": "archived_excerpt_needs_review",
+                                 "source_scope": scope, "company_code": company,
+                                 "disclosure_date": document.get('disclosure_date'),
                                  "text": source["text"][:600], "evidence_ids": [evidence_id]})
         if len(selected) > 32:
             raise ValueError("At most 32 explicit semantic excerpts per run")

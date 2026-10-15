@@ -29,6 +29,8 @@ class StructuredExtractionTask:
     def __init__(self, parse: ParseService, settings: Any) -> None:
         self.parse = parse
         self.settings = settings
+        if settings.extraction_backend not in {'rules', 'model'}:
+            raise ValueError('FINSCOPE_EXTRACTION_BACKEND must be rules or model')
 
     # ------------------------------------------------------------ 入口
     def run(self, context: Any, task_input: dict[str, Any]) -> dict[str, Any]:
@@ -52,6 +54,16 @@ class StructuredExtractionTask:
                 index = self.parse.load_index(row)
             if index is None:
                 warnings.append(f"文档 {document_id} 无法建立索引，跳过")
+                continue
+
+            if self.settings.extraction_backend == 'model':
+                from app.tasks.structured_extraction.model_extract import extract_candidates
+                result = extract_candidates(context.model, document_id, index, announcement_types)
+                records.extend(result['records'])
+                warnings.extend(result['warnings'])
+                for evidence in result['evidence']:
+                    validate_contract('Evidence', evidence)
+                    evidence_map.setdefault(evidence['evidence_id'], evidence)
                 continue
 
             # 纯表格文档走表头-数据行路径

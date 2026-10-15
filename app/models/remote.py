@@ -34,7 +34,7 @@ class _NoRedirect(HTTPRedirectHandler):
 
 def _input(context, aliases):
     # These are task source snippets, not a dump of the local review ledger.
-    allowed = {"source_kind", "company_code", "metric", "value", "unit", "period_start", "period_end",
+    allowed = {"source_kind", "source_scope", "company_code", "disclosure_date", "metric", "value", "unit", "period_start", "period_end",
                "period_type", "statement_scope", "restated", "text", "evidence_ids"}
     def clean(value):
         if isinstance(value, dict):

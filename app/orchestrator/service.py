@@ -782,7 +782,7 @@ class Orchestrator:
                     "disclosure_date": row["disclosure_date"],
                 }
             )
-        return {
+        bundle = {
             "api_version": API_VERSION,
             "task_type": task_type,
             "task_input": task_input,
@@ -792,6 +792,9 @@ class Orchestrator:
             "model_id": self.settings.model_id,
             "model_revision": self.settings.model_revision,
         }
+        if task_type == 'structured_extraction' and self.settings.extraction_backend != 'rules':
+            bundle['extraction_backend'] = self.settings.extraction_backend
+        return bundle
 
     @staticmethod
     def _dump(value: Any) -> str:

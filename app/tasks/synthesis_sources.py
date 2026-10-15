@@ -11,6 +11,12 @@ def sources(context, *, company=None, as_of_date=None, financial=False):
         items += excerpts(list(context.document_ids))
     selected = []
     for item in items:
+        if item.get('source_kind') == 'archived_excerpt_needs_review':
+            scope = item.get('source_scope')
+            if scope not in {'company', 'industry'}:
+                continue  # Old unbound excerpts are retained but need an explicit owner.
+            if company and scope == 'company' and item.get('company_code') != company:
+                continue
         if company is not None and item.get('company_code') not in {company, None}:
             continue
         if item.get('review_status') not in {None, 'verified'}:
