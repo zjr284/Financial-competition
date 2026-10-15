@@ -232,6 +232,13 @@ class ValuationTask:
                 "At least three peers with same-date market caps and TTM profits matching the target period are required",
                 target_profit["evidence_ids"],
             )
+        for market, profit in peer_inputs:
+            quality_calculations, quality_issues = target_earnings_quality(
+                context, index, facts, profit, origins, upstream,
+                subject=f"Peer {market['company_code']}",
+            )
+            upstream.extend(quality_calculations)
+            issues.extend(quality_issues)
         chosen = [target_profit] + [item for pair in peer_inputs for item in pair]
         evidence_ids = source_ids_for_facts(context, chosen)
         calculations: list[dict[str, Any]] = computed

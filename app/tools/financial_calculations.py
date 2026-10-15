@@ -143,7 +143,7 @@ class FinancialCalculator:
         if calc_id in self.calculations:
             return deepcopy(self.calculations[calc_id])
         unit = "CNY" if formula_code in {
-            "ttm_from_ytd", "quarter_from_ytd", "forecast_fcf", "discounted_fcf", "terminal_value",
+            "ttm_from_ytd", "quarter_from_ytd", "nonrecurring_gap_amount", "forecast_fcf", "discounted_fcf", "terminal_value",
             "dcf_enterprise_value", "equity_value", "relative_equity_value",
         } else "percent" if formula_code in {"yoy", "gross_margin", "nonrecurring_gap_share"} else "times"
         value: Decimal | None = None
@@ -238,7 +238,7 @@ class FinancialCalculator:
                 if vals[0] == 0:
                     raise ValueError("Revenue is zero")
                 return (vals[0] - vals[1]) / vals[0] * 100
-            if code == "nonrecurring_gap_share":
+            if code in {"nonrecurring_gap_share", "nonrecurring_gap_amount"}:
                 if calculations:
                     self._require_counts(code, vals, cvals, 0, 2)
                     parent = self._profit_calculation(calculations[0])
@@ -247,12 +247,17 @@ class FinancialCalculator:
                            ("company_code", "period_start", "period_end", "statement_scope", "restated")):
                         raise ValueError("TTM quality comparison requires the same company, period and basis")
                     self._check_profit_context(parent, params)
+                    if code == "nonrecurring_gap_amount":
+                        return cvals[0] - cvals[1]
                     if cvals[0] == 0:
                         raise ValueError("Parent TTM profit is zero")
                     return abs(cvals[0] - cvals[1]) / abs(cvals[0]) * 100
                 self._require_counts(code, vals, cvals, 2, 0)
-                if [f["metric"] for f in facts] != ["net_profit_parent", "net_profit_parent_excl_nonrecurring"] or not _same_period(*facts):
+                if ([f["metric"] for f in facts] != ["net_profit_parent", "net_profit_parent_excl_nonrecurring"]
+                        or not _same_period(*facts) or facts[0]["restated"] != facts[1]["restated"]):
                     raise ValueError("Nonrecurring gap requires same-period parent and adjusted parent net profit")
+                if code == "nonrecurring_gap_amount":
+                    return vals[0] - vals[1]
                 if vals[0] == 0:
                     raise ValueError("Parent net profit is zero")
                 return abs(vals[0] - vals[1]) / abs(vals[0]) * 100

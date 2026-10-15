@@ -147,5 +147,52 @@ class TargetEarningsQualityTests(unittest.TestCase):
         self.assertFalse(any(c['formula_code']=='nonrecurring_gap_share' for c in result['calculations']))
         self.assertTrue(any('adjusted profit inputs need review' in w for w in result['warnings']))
 
+
+class PeerEarningsQualityTests(unittest.TestCase):
+    def fixture(self):
+        data = TargetEarningsQualityTests().fixture()
+        for parent in list(data['facts']):
+            if parent['company_code'] == '999999' or parent['metric'] != 'net_profit_parent':
+                continue
+            adjusted = copy.deepcopy(parent)
+            adjusted.update(fact_id=parent['fact_id'] + '_adjusted', metric='net_profit_parent_excl_nonrecurring')
+            data['facts'].append(adjusted)
+        return data
+
+    def test_all_peers_have_tool_linked_quality_checks_without_changing_pe(self):
+        result = run_demo(self.fixture())
+        self.assertEqual(result['data']['valuation_range']['base'], '1500')
+        for code in ('nonrecurring_gap_amount', 'nonrecurring_gap_share'):
+            calculations = [c for c in result['calculations'] if c['formula_code'] == code]
+            self.assertEqual(len(calculations), 4)
+            self.assertEqual({c['parameters']['company_code'] for c in calculations}, {'999999', '999991', '999992', '999993'})
+            self.assertTrue(all(len(c['input_calculation_ids']) == 2 for c in calculations))
+        self.assertFalse(any('Peer ' in warning for warning in result['warnings']))
+
+    def test_peer_gap_is_flagged_with_company_and_keeps_reported_pe(self):
+        data = self.fixture()
+        source = next(f for f in data['facts'] if f['fact_id'] == 'fact_demo_999991_annual_adjusted')
+        source['value'] = '0'
+        result = run_demo(data)
+        self.assertEqual(result['data']['valuation_range']['base'], '1500')
+        self.assertTrue(any('Peer 999991 earnings quality: reported versus adjusted TTM gap' in w for w in result['warnings']))
+        item = next(x for x in result['review_items'] if 'Peer 999991' in x['reason'])
+        self.assertIn(source['evidence_ids'][0], item['evidence_ids'])
+
+    def test_unreviewed_peer_adjusted_fact_does_not_get_quality_result(self):
+        data = self.fixture()
+        next(f for f in data['facts'] if f['fact_id'] == 'fact_demo_999991_current_adjusted').update(review_status='needs_review', reason='Not confirmed')
+        result = run_demo(data)
+        self.assertEqual(result['data']['valuation_range']['base'], '1500')
+        self.assertTrue(any('Peer 999991 earnings quality: adjusted profit inputs need review' in w for w in result['warnings']))
+        self.assertFalse(any(c['formula_code'] == 'nonrecurring_gap_amount' and c['parameters']['company_code'] == '999991' for c in result['calculations']))
+
+    def test_peer_adjusted_restatement_mismatch_stays_pending(self):
+        data = self.fixture()
+        next(f for f in data['facts'] if f['fact_id'] == 'fact_demo_999991_current_adjusted')['restated'] = True
+        result = run_demo(data)
+        self.assertTrue(any('Peer 999991 earnings quality: TTM input restated mismatch' in w for w in result['warnings']))
+        self.assertEqual(result['data']['valuation_range']['base'], '1500')
+
 if __name__ == '__main__':
     unittest.main()
