@@ -44,13 +44,24 @@ try {
     assert.deepEqual(JSON.parse(await page.locator('#raw').textContent()),expected);
     await page.locator('#results').evaluate(e=>e.scrollIntoView({block:'start'}));
     if(item.source_button) {
-      await page.getByRole('button',{name:item.source_button,exact:true}).first().click();
+      let scope=page;
+      if(item.source_field) {
+        assert.match(item.source_field,/^[a-z_]+$/);
+        scope=page.locator('.disclosure-record').nth(item.record_index||0)
+          .locator('.field-card[data-field="'+item.source_field+'"]');
+      }
+      await scope.getByRole('button',{name:item.source_button,exact:true}).first().click();
       await page.locator('#location-note').filter({hasText:'固定 PDF 原件已校验哈希'}).waitFor({timeout:60000});
       assert.ok(await page.locator('#bbox').isVisible());
       await page.locator('#pdf-canvas').evaluate(e=>e.scrollIntoView({block:'start'}));
     }
-    await page.screenshot({path:path.join(output,item.name+'.png')});
-    captures.push({name:item.name,run_id:item.run_id,task_type:expected.task_type});
+    if(item.capture_selector) {
+      await page.locator(item.capture_selector).first().screenshot({path:path.join(output,item.name+'.png')});
+    } else {
+      await page.screenshot({path:path.join(output,item.name+'.png')});
+    }
+    captures.push({name:item.name,run_id:item.run_id,task_type:expected.task_type,
+      source_field:item.source_field||null,capture_selector:item.capture_selector||null});
   }
   assert.deepEqual(errors,[]);assert.deepEqual(mutations,[]);
   await fs.writeFile(path.join(output,'capture-proof.json'),JSON.stringify({code_version:revision,requests:'actual_http_get_only',errors,mutations,captures},null,2));
