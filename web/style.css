@@ -289,6 +289,15 @@ blockquote {
   background: white;
   border: 1px solid #dbe5e9;
 }
+.industry-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.semantic-section {
+  margin: 22px 0;
+}
 .ttm-card:target {
   outline: 2px solid var(--teal);
 }

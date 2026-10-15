@@ -1,4 +1,10 @@
 import { valuationView, valuationHTML, valuationCSV } from "./valuation.js";
+import {
+  synthesisView,
+  synthesisHTML,
+  synthesisCSV,
+  kindLabels,
+} from "./synthesis.js";
 const $ = (id) => document.getElementById(id);
 const state = {
   mode: "sample",
@@ -12,6 +18,7 @@ const state = {
   eventRun: null,
   eventPage: null,
   valuation: null,
+  synthesis: null,
 };
 const names = {
   structured_extraction: "公告结构化提取",
@@ -82,6 +89,9 @@ function reset() {
   state.urls = [];
   state.result = null;
   state.valuation = null;
+  state.synthesis = null;
+  $("export-synthesis-html").hidden = true;
+  $("export-synthesis-csv").hidden = true;
   $("export-html").hidden = true;
   $("export-csv").hidden = true;
   state.eventRun = null;
@@ -174,6 +184,11 @@ function evidenceButton(eid, label) {
 }
 function render(result) {
   state.result = result;
+  if (state.mode === "live") {
+    $("mode-badge").textContent = "团队 API · 实际运行结果";
+    $("connection").textContent =
+      "已读取本次运行结果，审核状态以结果与复核项为准";
+  }
   $("export").disabled = false;
   status(
     `${state.mode === "sample" ? "接口演示样例 · " : ""}${labels[result.status] || result.status} · ${result.run_id}`,
@@ -234,6 +249,10 @@ function render(result) {
     }
   } else if (result.task_type === "valuation") {
     renderValuation(result);
+  } else if (
+    ["industry_impact", "investment_memo"].includes(result.task_type)
+  ) {
+    renderSynthesis(result);
   } else {
     $("results").append(node("pre", JSON.stringify(result.data, null, 2)));
     result.evidence_ids.forEach((eid, i) =>
@@ -245,6 +264,79 @@ function render(result) {
   $("calculations").textContent = JSON.stringify(result.calculations, null, 2);
   $("raw").textContent = JSON.stringify(result, null, 2);
   renderReviews(result.review_items);
+}
+function renderSynthesis(result) {
+  const view = synthesisView(result, state.mode === "sample");
+  state.synthesis = view;
+  $("export-synthesis-html").hidden = false;
+  $("export-synthesis-csv").hidden = false;
+  $("summary").append(
+    node(
+      "p",
+      `${view.sample ? "全部虚构的接口协议样例，不代表模型效果。" : "模型生成候选，须人工审核。"}事实性陈述仍待核实；引用存在不等于结论成立。`,
+    ),
+  );
+  if (result.task_type === "industry_impact") {
+    const nodes = node("div", undefined, "industry-nodes");
+    const stages = {
+      upstream: "上游",
+      midstream: "中游",
+      downstream: "下游",
+      company: "目标公司",
+    };
+    for (const item of result.data.nodes)
+      nodes.append(
+        node(
+          "span",
+          `${item.name} · ${stages[item.stage] || item.stage}`,
+          "tag",
+        ),
+      );
+    $("results").append(nodes);
+  }
+  for (const group of view.groups) {
+    const section = node("section", undefined, "semantic-section");
+    section.dataset.section = group.id;
+    section.append(node("h3", group.title));
+    if (!group.items.length)
+      section.append(node("p", "暂无内容，须检查来源与任务复核项。", "reason"));
+    for (const item of group.items) {
+      const card = node("article", undefined, "card semantic-card");
+      card.append(
+        node("span", kindLabels[item.kind] || item.kind, "tag"),
+        node("p", item.text),
+      );
+      if (item.direction)
+        card.append(node("p", "模型标注方向：" + item.direction, "reason"));
+      for (const [title, values] of [
+        ["假设", item.assumptions],
+        ["限制", item.limitations],
+      ]) {
+        card.append(
+          node(
+            "p",
+            `${title}：${values.length ? values.join("；") : "未提供"}`,
+            "reason",
+          ),
+        );
+      }
+      const buttons = node("div", undefined, "evidence-buttons");
+      item.usableRefs.forEach((id, index) =>
+        buttons.append(evidenceButton(id, "查看依据 " + (index + 1))),
+      );
+      if (!item.refs.length)
+        card.append(node("p", "无逐项来源，需人工核对。", "reason"));
+      if (item.missingRefs.length)
+        card.append(
+          node("p", "引用未在本结果中登记，已停止来源跳转。", "reason"),
+        );
+      card.append(buttons);
+      section.append(card);
+    }
+    $("results").append(section);
+  }
+  for (const issue of view.issues)
+    $("results").append(node("p", issue, "reason"));
 }
 function renderValuation(result) {
   let source = state.mode === "sample" ? state.data.package : null;
@@ -733,4 +825,26 @@ function exportValuation(format) {
 }
 $("export-html").onclick = () => exportValuation("html");
 $("export-csv").onclick = () => exportValuation("csv");
+function exportSynthesis(format) {
+  if (!state.synthesis) return;
+  const raw =
+    format === "html"
+      ? synthesisHTML(state.synthesis)
+      : synthesisCSV(state.synthesis);
+  const url = URL.createObjectURL(
+    new Blob([raw], {
+      type:
+        format === "html"
+          ? "text/html;charset=utf-8"
+          : "text/csv;charset=utf-8",
+    }),
+  );
+  const link = node("a");
+  link.href = url;
+  link.download = `${state.mode === "sample" ? "synthetic-" : ""}${state.result.run_id}-review.${format}`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("export-synthesis-html").onclick = () => exportSynthesis("html");
+$("export-synthesis-csv").onclick = () => exportSynthesis("csv");
 loadSample().catch(reportError);
