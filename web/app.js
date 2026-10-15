@@ -201,7 +201,7 @@ function evidenceButton(eid, label) {
   b.onclick = () => showEvidence(eid).catch(reportError);
   return b;
 }
-function render(result) {
+function render(result, run = null) {
   state.result = result;
   if (state.mode === "live") {
     $("mode-badge").textContent = "团队 API · 实际运行结果";
@@ -275,7 +275,7 @@ function render(result) {
   } else if (
     ["industry_impact", "investment_memo"].includes(result.task_type)
   ) {
-    renderSynthesis(result);
+    renderSynthesis(result, run);
   } else {
     $("results").append(node("pre", JSON.stringify(result.data, null, 2)));
     result.evidence_ids.forEach((eid, i) =>
@@ -468,7 +468,7 @@ function renderDisclosure(result) {
   for (const issue of view.issues)
     $("results").append(node("p", issue, "reason"));
 }
-function renderSynthesis(result) {
+function renderSynthesis(result, run = null) {
   const view = synthesisView(result, state.mode === "sample");
   state.synthesis = view;
   $("export-synthesis-html").hidden = false;
@@ -476,7 +476,7 @@ function renderSynthesis(result) {
   $("summary").append(
     node(
       "p",
-      `${view.sample ? "全部虚构的接口协议样例，不代表模型效果。" : "模型生成候选，须人工审核。"}事实性陈述仍待核实；引用存在不等于结论成立。`,
+      `${view.sample ? "全部虚构的接口协议样例，不代表模型效果。" : run?.model_id === "local-ai-engineering-draft" ? "本地 AI 工程修订稿，不代表云端生成质量通过或真人裁决。" : "模型生成候选，须人工审核。"}事实性陈述仍待核实；引用存在不等于结论成立。`,
     ),
   );
   if (result.task_type === "industry_impact") {
@@ -950,7 +950,14 @@ $("load-existing").onclick = async () => {
     if (epoch !== state.epoch) return;
     if (result.run_id !== runId || result.task_type !== run.task_type)
       throw new Error("结果与已有运行不一致");
-    render(result);
+    render(result, run);
+    const provenance = node(
+      "p",
+      `原运行登记型号：${run.model_id || "未提供"}；登记型号不表示本任务实际调用模型。`,
+      "reason archived-provenance",
+    );
+    provenance.dataset.runModel = run.model_id || "";
+    $("summary").append(provenance);
     $("mode-badge").textContent = "团队 API · 已有运行结果";
     $("connection").textContent = "已读取归档结果，未启动新任务或调用模型";
     await loadEvents(run, epoch);
@@ -999,7 +1006,7 @@ $("run").onclick = async () => {
             `/runs/${encodeURIComponent(run.run_id)}/result`,
           );
           if (epoch !== state.epoch) return;
-          render(result);
+          render(result, current);
           await loadEvents(current, epoch);
           if (epoch !== state.epoch) return;
           $("stop").disabled = true;

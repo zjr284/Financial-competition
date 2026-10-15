@@ -116,6 +116,56 @@ try {
     );
     await racePage.close();
   }
+  // 本地工程编辑的历史运行不得显示成云端生成质量验收。
+  {
+    const archivePage = await browser.newPage();
+    await localSite(archivePage.context());
+    const archived = structuredClone(demo.results[5]);
+    archived.run_id = "run_engineering_review";
+    const requests = [];
+    await archivePage.route("**/api/v1/**", async (route) => {
+      requests.push(route.request().method());
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/result"))
+        await route.fulfill({ json: archived });
+      else if (url.pathname.endsWith("/events"))
+        await route.fulfill({ json: { events: [], next_cursor: null } });
+      else
+        await route.fulfill({
+          json: {
+            run_id: archived.run_id,
+            task_type: archived.task_type,
+            status: archived.status,
+            model_id: "local-ai-engineering-draft",
+          },
+        });
+    });
+    await archivePage.goto(base);
+    await archivePage.locator(".card").first().waitFor();
+    await archivePage.locator("#live").click();
+    await archivePage.locator("#api-base").fill(base + "/api/v1");
+    await archivePage.locator("#saved-run-id").fill(archived.run_id);
+    await archivePage.locator("#load-existing").click();
+    await archivePage.locator(".archived-provenance").waitFor();
+    assert.match(
+      await archivePage.locator("#summary").textContent(),
+      /本地 AI 工程修订稿，不代表云端生成质量通过或真人裁决/,
+    );
+    assert.equal(
+      await archivePage
+        .locator(".archived-provenance")
+        .getAttribute("data-run-model"),
+      "local-ai-engineering-draft",
+    );
+    assert.deepEqual(
+      JSON.parse(await archivePage.locator("#raw").textContent()),
+      archived,
+    );
+    assert.ok(
+      requests.length >= 2 && requests.every((method) => method === "GET"),
+    );
+    await archivePage.close();
+  }
   await page.goto(base);
   await page.getByText("接口演示样例", { exact: true }).waitFor();
   await page.locator(".card").first().waitFor();
