@@ -18,6 +18,8 @@ from app.tasks._finance_common import (
 )
 from contracts.ports import TaskContext
 from .ttm_inputs import prepare_ttm_inputs
+from .earnings_quality import target_earnings_quality
+from app.tools.market_sources import is_historical_market_observation
 
 
 DCF_REQUIRED = (
@@ -56,11 +58,21 @@ class ValuationTask:
         method = task_input["method"]
         if method not in {"relative_pe", "dcf"}:
             raise ValueError(f"Unsupported valuation method: {method}")
-        metrics = ["market_cap", "net_profit_parent_ttm", "net_profit_parent"] if method == "relative_pe" else ["revenue"]
+        metrics = ["market_cap", "net_profit_parent_ttm", "net_profit_parent", "net_profit_parent_excl_nonrecurring"] if method == "relative_pe" else ["revenue"]
         facts = context.evidence.extract_facts(list(context.document_ids), metrics)
         available, excluded = self._available_facts(context, facts, task_input["as_of_date"])
         payload = (self._relative_pe(context, task_input, available) if method == "relative_pe"
                    else self._dcf(context, task_input, available))
+        observed_docs = set()
+        for fact in available:
+            for eid in fact["evidence_ids"]:
+                ev = context.evidence.get_evidence(eid)
+                doc = context.documents.get_document(ev["document_id"])
+                if ev["document_id"] not in observed_docs and is_historical_market_observation(fact, ev, doc, task_input["as_of_date"]):
+                    observed_docs.add(ev["document_id"])
+                    note = "Historical market observation: trading date matches valuation date; first publication and original point-in-time version are not certified"
+                    payload["warnings"].append(note)
+                    payload["review_items"].append(review_item(context.run_id, note, [eid]))
         for fact, reason in excluded:
             message = f"Excluded {fact['fact_id']}: {reason}"
             payload["warnings"].append(message)
@@ -89,6 +101,8 @@ class ValuationTask:
                     raise ValueError(f"Evidence {evidence_id} is outside this run's document snapshot")
                 if document_id not in documents:
                     documents[document_id] = context.documents.get_document(document_id)
+                if is_historical_market_observation(fact, evidence, documents[document_id], as_of_date):
+                    continue
                 disclosed = documents[document_id].get("disclosure_date")
                 try:
                     disclosed_date = date.fromisoformat(disclosed) if disclosed else None
@@ -189,6 +203,11 @@ class ValuationTask:
         if decimal_value(target_profit["value"]) <= 0:
             return empty("Target TTM earnings are non-positive", target_profit["evidence_ids"])
 
+        quality_calculations, quality_issues = target_earnings_quality(
+            context, index, facts, target_profit, origins, upstream,
+        )
+        upstream.extend(quality_calculations)
+        issues.extend(quality_issues)
         peer_inputs: list[tuple[dict[str, Any], dict[str, Any]]] = []
         for company, profit in by_company.items():
             if company == target or profit["review_status"] != "verified":
@@ -198,8 +217,15 @@ class ValuationTask:
             try:
                 market = index.select(company, "market_cap", as_of, "not_applicable", "instant")
             except FactConflict:
+                refs = unique(e for f in facts if f["company_code"] == company and f["metric"] == "market_cap"
+                              for e in f["evidence_ids"])
+                issues.append((f"Market snapshot {company}: conflicting same-date market caps", refs))
                 continue
-            if market is not None and market["review_status"] == "verified":
+            if market is None:
+                issues.append((f"Market snapshot {company}: missing valuation-date market cap", []))
+            elif market["review_status"] != "verified":
+                issues.append((f"Market snapshot {company}: raw market cap needs review", market["evidence_ids"]))
+            else:
                 peer_inputs.append((market, profit))
         if len(peer_inputs) < 3:
             return empty(

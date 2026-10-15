@@ -114,4 +114,38 @@ class TTMValuationTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256((HERE/doc['filename']).read_bytes()).hexdigest(),doc['sha256'])
 
 
-if __name__=='__main__':unittest.main()
+
+
+class TargetEarningsQualityTests(unittest.TestCase):
+    def fixture(self):
+        data=json.loads((HERE/'inputs.json').read_text())
+        for role,value in zip(('annual','current','prior'),('40','30','20')):
+            parent=next(f for f in data['facts'] if f['fact_id']==f'fact_demo_999999_{role}')
+            adjusted=copy.deepcopy(parent)
+            adjusted.update(fact_id=f'fact_quality_{role}',metric='net_profit_parent_excl_nonrecurring',value=value,
+                            evidence_ids=[f'ev_quality_{role}'])
+            source=copy.deepcopy(next(e for e in data['evidence'] if e['evidence_id']==parent['evidence_ids'][0]))
+            source.update(evidence_id=adjusted['evidence_ids'][0],text=f'Explicitly synthetic adjusted-profit source {value}')
+            data['facts'].append(adjusted);data['evidence'].append(source)
+        return data
+
+    def test_quality_gap_is_tool_computed_and_reported_pe_basis_is_preserved(self):
+        result=run_demo(self.fixture())
+        self.assertEqual(result['data']['valuation_range']['base'],'1500')
+        gap=next(c for c in result['calculations'] if c['formula_code']=='nonrecurring_gap_share')
+        self.assertEqual(gap['value'],'58.3333')
+        records={c['calculation_id']:c for c in result['calculations']}
+        self.assertTrue(set(gap['input_calculation_ids']) <= records.keys())
+        self.assertTrue(any('reported versus adjusted TTM gap 58.3333%' in w for w in result['warnings']))
+        self.assertTrue({'ev_quality_annual','ev_quality_current','ev_quality_prior'} <= set(result['evidence_ids']))
+
+    def test_pending_adjusted_profit_warns_without_inventing_a_gap(self):
+        data=self.fixture()
+        source=next(f for f in data['facts'] if f['fact_id']=='fact_quality_current')
+        source.update(review_status='needs_review',reason='No reviewer decision')
+        result=run_demo(data)
+        self.assertFalse(any(c['formula_code']=='nonrecurring_gap_share' for c in result['calculations']))
+        self.assertTrue(any('adjusted profit inputs need review' in w for w in result['warnings']))
+
+if __name__ == '__main__':
+    unittest.main()

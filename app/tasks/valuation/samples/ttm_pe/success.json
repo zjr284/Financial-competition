@@ -611,10 +611,22 @@
         "ev_demo_999993_current",
         "ev_demo_999993_prior"
       ]
+    },
+    {
+      "review_id": "review_c8d9c410f5c7c2b7bb6a",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "Target earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999999_annual",
+        "ev_demo_999999_current",
+        "ev_demo_999999_prior"
+      ]
     }
   ],
   "warnings": [
     "接口演示样例：全部数据虚构；使用生产 FinancialCalculator，真实财报资料仍需独立复核。",
-    "区间为企业股权总价值（人民币元），不是每股价格或投资建议"
+    "区间为企业股权总价值（人民币元），不是每股价格或投资建议",
+    "Target earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review"
   ]
 }

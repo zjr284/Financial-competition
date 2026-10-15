@@ -126,7 +126,8 @@ class FinancialCalculator:
             source_ids.update(source.get("input_fact_ids", []))
             pending.extend(source.get("input_calculation_ids", []))
         payload = {
-            "formula_revision": "finance-tools-v2",
+            "formula_revision": ("finance-tools-v2:qoe-ttm-v1" if formula_code == "nonrecurring_gap_share"
+                                 and input_calculation_ids else "finance-tools-v2"),
             "formula_code": formula_code,
             "input_fact_ids": input_fact_ids,
             "input_calculation_ids": input_calculation_ids,
@@ -238,6 +239,17 @@ class FinancialCalculator:
                     raise ValueError("Revenue is zero")
                 return (vals[0] - vals[1]) / vals[0] * 100
             if code == "nonrecurring_gap_share":
+                if calculations:
+                    self._require_counts(code, vals, cvals, 0, 2)
+                    parent = self._profit_calculation(calculations[0])
+                    adjusted = self._profit_calculation(calculations[1], "net_profit_parent_excl_nonrecurring_ttm")
+                    if any(parent[key] != adjusted[key] for key in
+                           ("company_code", "period_start", "period_end", "statement_scope", "restated")):
+                        raise ValueError("TTM quality comparison requires the same company, period and basis")
+                    self._check_profit_context(parent, params)
+                    if cvals[0] == 0:
+                        raise ValueError("Parent TTM profit is zero")
+                    return abs(cvals[0] - cvals[1]) / abs(cvals[0]) * 100
                 self._require_counts(code, vals, cvals, 2, 0)
                 if [f["metric"] for f in facts] != ["net_profit_parent", "net_profit_parent_excl_nonrecurring"] or not _same_period(*facts):
                     raise ValueError("Nonrecurring gap requires same-period parent and adjusted parent net profit")
@@ -336,7 +348,7 @@ class FinancialCalculator:
                 return equity
         raise ValueError(f"Unsupported formula_code: {code}")
 
-    def _profit_calculation(self, calc: dict[str, Any]) -> dict[str, str]:
+    def _profit_calculation(self, calc: dict[str, Any], expected_metric: str = "net_profit_parent_ttm") -> dict[str, str]:
         if calc["formula_code"] != "ttm_from_ytd" or calc["unit"] != "CNY" or calc["input_calculation_ids"]:
             raise ValueError("PE requires a sourced TTM profit calculation")
         try:
@@ -344,7 +356,7 @@ class FinancialCalculator:
         except KeyError as exc:
             raise ValueError("TTM source fact is unavailable") from exc
         metadata = _ttm_metadata(facts)
-        if metadata["metric"] != "net_profit_parent_ttm":
+        if metadata["metric"] != expected_metric:
             raise ValueError("PE cannot substitute adjusted profit for parent profit")
         if any(f["review_status"] != "verified" or f["value"] is None for f in facts):
             raise ValueError("TTM source facts are missing or unverified")

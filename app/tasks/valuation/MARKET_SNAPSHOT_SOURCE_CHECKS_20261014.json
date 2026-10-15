@@ -1,0 +1,87 @@
+{
+  "purpose": "public primary-source checks; needs_review, not public Calculation or verified valuation input",
+  "source_capture_date": "2026-10-14",
+  "candidates": [
+    {
+      "company_code": "300014",
+      "as_of_date": "2026-09-30",
+      "close_price": "49.81",
+      "total_shares": "2173296935",
+      "market_cap": "108251920332.35",
+      "close_price_unit": "CNY/share",
+      "total_shares_unit": "share",
+      "market_cap_unit": "CNY",
+      "source_sha256": "2760cd4c0f8d93170d4e24d0dae4fcb669812089fdb1060384f85ffa25d63851",
+      "cross_source_sha256": "0edd8313beac1d69b409b5001d594259245950f6a487d19ff336e044d8ea1ea5",
+      "calculation_id": "calc_market_source_5b5ed75f704ff29c3ac6",
+      "formula": "close_price * total_shares (cross-check only)",
+      "checked_value": "108251920332.35",
+      "checked_value_unit": "CNY",
+      "source_check_status": "consistent",
+      "review_status": "needs_review",
+      "source_field": "$.result.data[0].TOTAL_MARKET_CAP",
+      "limitations": [
+        "Historical provider snapshots retrieved later; not exchange-authenticated tape",
+        "Structured field confidence is not human approval or PDF coordinate accuracy",
+        "Original API disclosure date is unknown; TRADE_DATE is the observation date, not a publication date",
+        "Recognized historical observations remain subject to a source-vintage review in valuation"
+      ],
+      "source_url": "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_VALUEANALYSIS_DET&columns=ALL&filter=(SECURITY_CODE%3D%22300014%22)(TRADE_DATE%3D%272026-09-30%27)&pageSize=10&pageNumber=1",
+      "cross_source_url": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sz300014,day,2026-09-30,2026-09-30,10,"
+    },
+    {
+      "company_code": "000049",
+      "as_of_date": "2026-09-30",
+      "close_price": "22.4",
+      "total_shares": "384638534",
+      "market_cap": "8615903161.6",
+      "close_price_unit": "CNY/share",
+      "total_shares_unit": "share",
+      "market_cap_unit": "CNY",
+      "source_sha256": "5c7bc719a54d987d61dae29d228c75a756c926f18acb5a3cec9f2b8e271bb44c",
+      "cross_source_sha256": "190822b727ed5d9e86a5004eb089f74a1a8b5711e1c703aa540565fa97df7aa9",
+      "calculation_id": "calc_market_source_d581bd6870c73dda9659",
+      "formula": "close_price * total_shares (cross-check only)",
+      "checked_value": "8615903161.60",
+      "checked_value_unit": "CNY",
+      "source_check_status": "consistent",
+      "review_status": "needs_review",
+      "source_field": "$.result.data[0].TOTAL_MARKET_CAP",
+      "limitations": [
+        "Historical provider snapshots retrieved later; not exchange-authenticated tape",
+        "Structured field confidence is not human approval or PDF coordinate accuracy",
+        "Original API disclosure date is unknown; TRADE_DATE is the observation date, not a publication date",
+        "Recognized historical observations remain subject to a source-vintage review in valuation"
+      ],
+      "source_url": "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_VALUEANALYSIS_DET&columns=ALL&filter=(SECURITY_CODE%3D%22000049%22)(TRADE_DATE%3D%272026-09-30%27)&pageSize=10&pageNumber=1",
+      "cross_source_url": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sz000049,day,2026-09-30,2026-09-30,10,"
+    },
+    {
+      "company_code": "001283",
+      "as_of_date": "2026-09-30",
+      "close_price": "47.06",
+      "total_shares": "129680120",
+      "market_cap": "6102746447.2",
+      "close_price_unit": "CNY/share",
+      "total_shares_unit": "share",
+      "market_cap_unit": "CNY",
+      "source_sha256": "d4f97a220bad4a774b60506fb490bad9cfd6d876c3a4f7745d23461b18def0ed",
+      "cross_source_sha256": "a2ad11d663b7efd0a4eb284ef07bc9579a5e3fc45dce2c2d03c00bd1a7f04ba8",
+      "calculation_id": "calc_market_source_b061f745bbdfcbd3a658",
+      "formula": "close_price * total_shares (cross-check only)",
+      "checked_value": "6102746447.20",
+      "checked_value_unit": "CNY",
+      "source_check_status": "consistent",
+      "review_status": "needs_review",
+      "source_field": "$.result.data[0].TOTAL_MARKET_CAP",
+      "limitations": [
+        "Historical provider snapshots retrieved later; not exchange-authenticated tape",
+        "Structured field confidence is not human approval or PDF coordinate accuracy",
+        "Original API disclosure date is unknown; TRADE_DATE is the observation date, not a publication date",
+        "Recognized historical observations remain subject to a source-vintage review in valuation"
+      ],
+      "source_url": "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_VALUEANALYSIS_DET&columns=ALL&filter=(SECURITY_CODE%3D%22001283%22)(TRADE_DATE%3D%272026-09-30%27)&pageSize=10&pageNumber=1",
+      "cross_source_url": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sz001283,day,2026-09-30,2026-09-30,10,"
+    }
+  ]
+}
