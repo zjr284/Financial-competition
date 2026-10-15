@@ -23,7 +23,7 @@ def wrap(text, draw, font, width):
 
 def timing(scene, lengths):
     duration = Decimal(str(scene['duration']))
-    if duration <= 0 or not lengths or any(n <= 0 for n in lengths):
+    if duration <= 1 or not lengths or any(n <= 0 for n in lengths):
         raise ValueError('片段与音轨时长须大于零')
     speed = max(Decimal(1), sum(lengths) / (duration - Decimal(1)))
     if speed > Decimal('1.35'):
@@ -53,19 +53,23 @@ def build(storyboard, assets, voices, output, font_path):
                 lengths.append(Decimal(wav.getnframes()) / wav.getframerate())
             audio.append(file)
         speed, durations = timing(scene, lengths)
-        asset = assets / scene['asset'] if scene['asset'] else None
-        if asset and not asset.is_file():
-            raise ValueError(f'缺少实际素材：{scene["asset"]}')
-        inputs += audio + ([asset] if asset else [])
-        prepared.append((scene, audio, asset, speed, durations))
+        names = scene.get('assets', [scene['asset']] * len(audio))
+        if len(names) != len(audio):
+            raise ValueError('逐句素材数量与配音不一致')
+        pictures = [assets / name if name else None for name in names]
+        for picture in pictures:
+            if picture and not picture.is_file():
+                raise ValueError(f'缺少实际素材：{picture.name}')
+        inputs += audio + [p for p in pictures if p]
+        prepared.append((scene, audio, pictures, speed, durations))
     output.mkdir(parents=True)
     fonts = {size: ImageFont.truetype(str(font_path), size) for size in (24, 28, 32, 38, 48, 62)}
     subtitles, cursor, concat = [], Decimal(0), []
     def stamp(t):
         millis = int(t * 1000)
         return f'{millis//3600000:02}:{millis//60000%60:02}:{millis//1000%60:02},{millis%1000:03}'
-    for i, (scene, audio, asset, speed, durations) in enumerate(prepared):
-        for j, (speech, wav, duration) in enumerate(zip(scene['speech'], audio, durations)):
+    for i, (scene, audio, pictures, speed, durations) in enumerate(prepared):
+        for j, (speech, wav, asset, duration) in enumerate(zip(scene['speech'], audio, pictures, durations)):
             image = Image.new('RGB', (1920,1080), '#f2f6f7')
             draw = ImageDraw.Draw(image)
             draw.rectangle((0,0,1920,170), fill='#102f3b')

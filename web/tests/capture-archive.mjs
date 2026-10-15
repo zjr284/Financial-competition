@@ -42,7 +42,13 @@ try {
     await page.waitForFunction(id=>{try{return JSON.parse(document.querySelector('#raw').textContent).run_id===id;}catch{return false;}},item.run_id);
     await page.waitForFunction(()=>!document.querySelector('#load-existing').disabled,null,{timeout:60000});
     assert.deepEqual(JSON.parse(await page.locator('#raw').textContent()),expected);
-    await page.locator('#results').scrollIntoViewIfNeeded();
+    await page.locator('#results').evaluate(e=>e.scrollIntoView({block:'start'}));
+    if(item.source_button) {
+      await page.getByRole('button',{name:item.source_button,exact:true}).first().click();
+      await page.locator('#location-note').filter({hasText:'固定 PDF 原件已校验哈希'}).waitFor({timeout:60000});
+      assert.ok(await page.locator('#bbox').isVisible());
+      await page.locator('#pdf-canvas').evaluate(e=>e.scrollIntoView({block:'start'}));
+    }
     await page.screenshot({path:path.join(output,item.name+'.png')});
     captures.push({name:item.name,run_id:item.run_id,task_type:expected.task_type});
   }
