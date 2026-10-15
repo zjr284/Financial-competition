@@ -69,6 +69,16 @@ def verify(source_store, draft, company, source_ids, output, *, dataset, synthet
         report = app.upload_path(str(draft))
         if report['document_id'] in source_ids:
             raise ValueError('草稿不能同时充当核查来源')
+        # 先固定全部解析快照，再冻结 Run 输入。混用已缓存原件与首次
+        # 解析草稿，会触发当前 A 重放器的 parse/load_index 轨迹排序限制。
+        # 准备阶段同样留事件，不省略访问记录或改写旧 Run。
+        for doc_id in [*source_ids, report['document_id']]:
+            parsed = app.parse_document(doc_id)
+            app.events.append('run_prepare_' + doc_id.removeprefix('doc_'),
+                              event_type='tool_call', tool_name='parse_document',
+                              message='固定 C 草稿核查的解析快照',
+                              input_hash=app.get_document(doc_id)['sha256'],
+                              output_hash=digest(parsed))
         inventory = []
         for kind, task_input in [
             ('research_verification', {'draft_document_id': report['document_id'], 'company_code': company}),

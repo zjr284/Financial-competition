@@ -21,6 +21,10 @@ class VerifyDraftTests(unittest.TestCase):
             try:
                 seeded = seed(app)
                 raw, _ = app.get_document_content(seeded['documents']['draft'])
+                # 模拟来源已缓存、草稿尚未解析的首次真实运行。
+                with app.store.write() as conn:
+                    conn.execute('UPDATE documents SET parse_manifest=NULL WHERE document_id=?',
+                                 (seeded['documents']['draft'],))
             finally:
                 app.close()
             draft = root / 'self-authored.pdf'
