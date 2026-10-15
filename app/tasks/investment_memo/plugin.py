@@ -45,7 +45,23 @@ class InvestmentMemoTask:
                 "company_code": task_input["company_code"],
                 "as_of_date": task_input["as_of_date"],
                 "source_items": source_items,
-                "instructions": "Cite only archived evidence; separate fact, calculation, inference and opinion; include risks and disconfirming conditions.",
+                "instructions_version": "memo-economic-subject-v3",
+                "instructions": (
+                    "Cite only archived evidence; separate fact, calculation, inference and opinion; "
+                    "include risks and disconfirming conditions. Attribute disclosed statements to their source. "
+                    "Preserve the company, product and value-chain stage to which each source claim applies. "
+                    "Do not transfer a customer's or industry's component costs, margin exposure or inventory "
+                    "to the focus company without explicit source support. Where evidence concerns customer "
+                    "product costs, discuss indirect demand transmission as a conditional inference; "
+                    "state that company cost, pricing and margin effects require additional evidence. "
+                    "Do not assume the focus company procures, produces or sells those components. "
+                    "Every statement, including a risk or disconfirming condition, must cite a supplied "
+                    "excerpt that motivates it. Stay within the products and relationships in those "
+                    "excerpts; do not introduce other business segments from background knowledge. "
+                    "For customer component cost pressure, limit conclusions to conditional changes "
+                    "in customer demand or bargaining pressure; do not say the focus company's own "
+                    "product pricing must pass through that component cost. Keep the draft concise."
+                ),
             },
         )
         validate_task_data("MemoData", data)
@@ -56,8 +72,8 @@ class InvestmentMemoTask:
         evidence_ids = source_ids_for_statements(context, statements, known_ids)
         reviews: list[dict[str, Any]] = []
         for statement in statements:
-            if statement["kind"] in {"fact", "calculation"} and not statement["evidence_ids"]:
-                reviews.append(review_item(context.run_id, "Memo factual statement lacks evidence"))
+            if not statement["evidence_ids"]:
+                reviews.append(review_item(context.run_id, "Memo statement lacks source evidence"))
             if statement["kind"] in {"inference", "opinion"} and not (
                 statement["assumptions"] or statement["limitations"]
             ):

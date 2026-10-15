@@ -158,6 +158,31 @@ def test_retry_transient_failure_and_pin_attempt_count(runtime, model_server):
     assert runtime.app.model.calls[-1].attempts == 2
 
 
+@pytest.mark.parametrize('model_id', ['qwen3.7-plus', 'qwen3.7-plus-2026-05-26', 'protocol-fixture'])
+def test_qwen_plus_disables_thinking_without_changing_other_providers(runtime, model_server, model_id):
+    model = RemoteJsonModel(Settings(data_dir=runtime.settings.data_dir, model_id=model_id))
+    model.infer_json('industry_impact', [runtime.eid], 'IndustryData', {'scenario_ids': ['base']})
+    body, _ = model_server.requests[-1]
+    if model_id.startswith('qwen3.7-plus'):
+        assert body['enable_thinking'] is False
+    else:
+        assert 'enable_thinking' not in body
+    assert body['response_format'] == {'type': 'json_object'}
+
+
+def test_uncited_memo_inference_has_an_explicit_review_item(runtime, model_server):
+    statement = {'text': '合成情景，来源不足', 'kind': 'inference', 'evidence_ids': [],
+                 'assumptions': ['未经证实的条件'], 'limitations': ['需要补充来源']}
+    output = {'thesis': [statement], 'evidence': [], 'risks': [statement],
+              'disconfirming_conditions': [statement], 'monitoring_indicators': ['待补充']}
+    envelope = {'choices': [{'finish_reason': 'stop', 'message': {'content': json.dumps(output)}}]}
+    model_server.replies = [(200, json.dumps(envelope).encode())]
+    outcome = run(runtime, 'investment_memo')
+    result = runtime.app.get_result(outcome['run_id'])
+    assert outcome['status'] == 'needs_review'
+    assert any(item['reason'] == 'Memo statement lacks source evidence' for item in result['review_items'])
+
+
 @pytest.mark.parametrize('status,raw', [
     (401, b'provider-secret-must-not-enter-log'),
     (200, b'{bad json'),
