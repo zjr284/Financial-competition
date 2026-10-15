@@ -11,15 +11,14 @@ from app.tasks._finance_common import (
     validate_task_data,
 )
 from contracts.ports import TaskContext
+from app.tasks.synthesis_sources import sources
 
 
 class IndustryImpactTask:
     task_type = "industry_impact"
 
     def run(self, context: TaskContext, task_input: dict[str, Any]) -> dict[str, Any]:
-        source_items = context.evidence.extract_facts(
-            list(context.document_ids), ["industry_event"]
-        )
+        source_items = sources(context)
         known_ids = unique(
             evidence_id
             for item in source_items
@@ -74,5 +73,5 @@ class IndustryImpactTask:
             "evidence_ids": cited_ids,
             "calculations": [],
             "review_items": reviews,
-            "warnings": ["产业链传导为条件性分析，需人工核对适用边界"],
+            "warnings": ["产业链传导为条件性分析，需人工核对适用边界；原文片段登记不等于已核实金融事实"],
         }

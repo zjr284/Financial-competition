@@ -40,6 +40,39 @@ class ReviewedFactPort:
     def get_evidence(self, evidence_id: str) -> dict[str, Any]:
         return self.evidence.get_evidence(evidence_id)
 
+    def archived_excerpts(self, document_ids: list[str]) -> list[dict[str, Any]]:
+        """Explicit semantic sources; these excerpts are not verified financial Facts."""
+        payload = self._snapshot
+        if payload is None:
+            if not self.manifest_path.is_file():
+                return []
+            payload = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or payload.get("version") != 1 or not isinstance(payload.get("documents"), list):
+            raise ValueError("Invalid source manifest")
+        selected, seen = [], set()
+        for bundle in payload["documents"]:
+            document_id = bundle.get("document_id")
+            if document_id not in document_ids:
+                continue
+            document = self.documents.get_document(document_id)
+            if bundle.get("sha256") != document["sha256"]:
+                raise ValueError("Semantic source document hash mismatch")
+            ids = bundle.get("semantic_evidence_ids", [])
+            if not isinstance(ids, list) or len(ids) > 16:
+                raise ValueError("At most 16 explicit excerpts per document")
+            for evidence_id in ids:
+                if not isinstance(evidence_id, str) or evidence_id in seen:
+                    raise ValueError("Invalid or repeated semantic evidence ID")
+                seen.add(evidence_id)
+                source = self.get_evidence(evidence_id)
+                if source["document_id"] != document_id or not source["text"].strip():
+                    raise ValueError("Semantic evidence does not belong to its source")
+                selected.append({"source_kind": "archived_excerpt_needs_review",
+                                 "text": source["text"][:600], "evidence_ids": [evidence_id]})
+        if len(selected) > 32:
+            raise ValueError("At most 32 explicit semantic excerpts per run")
+        return selected
+
     def extract_facts(self, document_ids: list[str], field_codes: list[str]) -> list[dict[str, Any]]:
         if self._snapshot is None:
             if not self.manifest_path.is_file():

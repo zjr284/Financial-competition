@@ -10,7 +10,7 @@ from app.config import Settings, get_settings
 from app.errors import not_found, validation_error
 from app.ingest.service import DocumentService
 from app.logging.events import EventLog
-from app.models.adapter import OfflineRuleModel
+from app.models.adapter import OfflineRuleModel, RemoteJsonModel
 from app.models.ocr import OcrAdapter
 from app.orchestrator.service import Orchestrator
 from app.parse import pdfpos
@@ -27,7 +27,7 @@ class App:
     documents: DocumentService
     parse: ParseService
     events: EventLog
-    model: OfflineRuleModel
+    model: Any
     ocr: OcrAdapter
     orchestrator: Orchestrator
 
@@ -142,11 +142,15 @@ _CACHED: App | None = None
 
 def build_app(settings: Settings | None = None) -> App:
     active = settings or get_settings()
+    import os
+    backend = os.environ.get("FINSCOPE_MODEL_BACKEND", "offline-rule")
+    if backend not in {"offline-rule", "remote-json"}:
+        raise ValueError("Unknown FINSCOPE_MODEL_BACKEND")
+    model = RemoteJsonModel(active) if backend == "remote-json" else OfflineRuleModel(active)
     store = Store(active)
     documents = DocumentService(store, active)
     parse = ParseService(store, documents, active)
     events = EventLog(store, active)
-    model = OfflineRuleModel(active)
     ocr = OcrAdapter(active)
     orchestrator = Orchestrator(store, documents, parse, events, active, model=model)
     return App(active, store, documents, parse, events, model, ocr, orchestrator)
