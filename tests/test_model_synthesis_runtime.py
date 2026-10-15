@@ -64,6 +64,34 @@ def model_server():
         thread.join()
 
 
+@pytest.mark.parametrize('inline,declared,accepted', [
+    ('ev_model_0001', ['ev_model_0001'], True),
+    ('ev_model_0002', ['ev_model_0001'], False),
+    ('ev_model_0001', [], False),
+])
+def test_inline_citations_restore_only_the_statements_declared_sources(runtime, model_server, inline, declared, accepted):
+    statement = {'text': '条件分析['+inline+']', 'kind': 'inference', 'evidence_ids': declared,
+                 'assumptions': ['仅作条件分析'], 'limitations': ['需复核']}
+    output = {'thesis': [statement], 'evidence': [], 'risks': [], 'disconfirming_conditions': [], 'monitoring_indicators': []}
+    envelope = {'choices': [{'finish_reason': 'stop', 'message': {'content': json.dumps(output)}}]}
+    model_server.replies.append((200, json.dumps(envelope).encode()))
+    call = lambda: runtime.app.model.infer_json('investment_memo', [runtime.eid], 'MemoData', {})
+    if accepted:
+        actual = call()['thesis'][0]
+        assert actual['text'] == '条件分析['+runtime.eid+']'
+        assert actual['evidence_ids'] == [runtime.eid]
+    else:
+        with pytest.raises(AppError, match='模型调用或输出校验失败'):
+            call()
+
+
+def test_inline_citation_restoration_does_not_modify_literal_extraction_raw_values():
+    from app.models.remote import _restore_sources
+    output = {'fields': [{'raw_value': '[ev_model_0001]', 'evidence_ids': ['ev_model_0001']}]}
+    _restore_sources(output, {'ev_model_0001': 'ev_synthetic'})
+    assert output['fields'][0] == {'raw_value': '[ev_model_0001]', 'evidence_ids': ['ev_synthetic']}
+
+
 @pytest.fixture
 def runtime(tmp_path, monkeypatch, model_server):
     monkeypatch.setenv('FINSCOPE_MODEL_BACKEND', 'remote-json')

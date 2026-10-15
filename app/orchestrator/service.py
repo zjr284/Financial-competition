@@ -794,6 +794,8 @@ class Orchestrator:
         }
         if task_type == 'structured_extraction' and self.settings.extraction_backend != 'rules':
             bundle['extraction_backend'] = self.settings.extraction_backend
+            if self.settings.extraction_grid:
+                bundle['extraction_grid'] = True
         return bundle
 
     @staticmethod

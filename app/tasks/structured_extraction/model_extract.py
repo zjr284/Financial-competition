@@ -14,7 +14,7 @@ def _compact(text):
     return re.sub(r'\s+', '', to_halfwidth(text))
 
 
-def source_windows(index):
+def source_windows(index, *, exclude=()):
     """At most 16 short, spatially contiguous excerpts from the first two pages."""
     windows = []
     for page in index.pages[:2]:
@@ -26,6 +26,9 @@ def source_windows(index):
             if re.match(r'^\s*2[、.．]', line.text) and '累计' in line.text and '质押' in line.text:
                 stop = True  # Keep cumulative holdings out of the new-pledge candidate window.
                 break
+            if any(box['page'] == page.page and box['bbox'][1] <= (line.bbox[1] + line.bbox[3]) / 2 <= box['bbox'][3]
+                   for box in exclude):
+                continue
             if chunk and size + len(line.text) > 240:
                 windows.append(index.evidence_for_lines(page.page, chunk))
                 chunk, size = [], 0
@@ -68,20 +71,50 @@ def _field(code, candidate, expect, evidence):
     return value
 
 
-def extract_candidates(model, document_id, index, announcement_types):
-    windows = source_windows(index)
+def grid_sources(index, cells):
+    """Select complete native grids before the cumulative-pledge section.
+
+    Row/column identifiers stay local. Captions contain only public header text;
+    raw-value checks still use the actual cell text, never the generated caption.
+    """
+    cutoff = next(((page.page, line.bbox[1]) for page in index.pages[:2] for line in page.lines
+                   if re.match(r'^\s*2[、.．]', line.text) and '累计' in line.text and '质押' in line.text), (3, 0))
+    tables = {}
+    for cell in cells or []:
+        tables.setdefault((cell['page'], cell['table_id']), []).append(cell)
+    selected, captions, boxes = [], [], []
+    for (page, _), group in sorted(tables.items()):
+        # Reject a whole table when it crosses the section boundary or cap.
+        if page > cutoff[0] or (page == cutoff[0] and max(c['bbox'][3] for c in group) > cutoff[1]):
+            continue
+        headers = {c['column']: c['text'] for c in group if c['row'] == 1}
+        body = sorted((c for c in group if c['row'] > 1), key=lambda c: (c['row'], c['column']))
+        if not body or len(selected) + len(body) > 64:
+            continue
+        selected.extend(body)
+        captions.extend({'text': headers.get(c['column'], '')[:80] + '：' + c['text'],
+                         'evidence_ids': [c['evidence_id']]} for c in body)
+        boxes.append({'page': page, 'bbox': [min(c['bbox'][0] for c in group), min(c['bbox'][1] for c in group),
+                                           max(c['bbox'][2] for c in group), max(c['bbox'][3] for c in group)]})
+    return selected, captions, boxes
+
+
+def extract_candidates(model, document_id, index, announcement_types, *, cells=None):
+    selected, captions, boxes = grid_sources(index, cells)
+    windows = source_windows(index, exclude=boxes)
+    evidence_rows = windows + selected
     warning = '模型只处理前两页的有限短片段；候选不等于完整抽取或已复核事实'
-    if not windows:
+    if not evidence_rows:
         return {'records': [], 'evidence': [], 'warnings': [warning]}
-    evidence = {item['evidence_id']: item for item in windows}
+    evidence = {item['evidence_id']: item for item in evidence_rows}
     specs = {kind: [{'field_code': 'company_code', 'label': '证券代码', 'expect': 'text'},
                     {'field_code': 'event_date', 'label': '公告或签署日期', 'expect': 'date'}]
                    + [{'field_code': spec.field_code, 'label': spec.label, 'expect': spec.expect}
                       for spec in FIELD_SPECS[kind]] for kind in announcement_types}
     output = model.infer_json('structured_extraction', list(evidence), 'ExtractionData', {
         'document_alias': 'doc_model_0001', 'announcement_types': announcement_types, 'field_specs': specs,
-        'source_items': [{'text': item['text'], 'evidence_ids': [item['evidence_id']]} for item in windows],
-        'instructions_version': 'announcement-candidates-v1',
+        'source_items': [{'text': item['text'], 'evidence_ids': [item['evidence_id']]} for item in windows] + captions,
+        'instructions_version': 'announcement-candidates-grid-v2' if selected else 'announcement-candidates-v1',
         'instructions': (
             'Extract only events actually disclosed in supplied excerpts, one record per transaction/row. '
             'Use document_alias as document_id. Every record must include company_code and event_date '
@@ -91,6 +124,8 @@ def extract_candidates(model, document_id, index, announcement_types):
             'invent dates, merge different rows, or treat cumulative positions as new transactions. '
             'For pledge, pledged_ratio means percentage of total company share capital, not of the holder holdings. '
             'A pledge ending upon release is not a known calendar date; retain its raw phrase. '
+            + ('Native table cells appear in row order with header captions; a caption is not part of raw_value. '
+               if selected else '') +
             'Missing fields have raw_value=null and no evidence. Return records=[] when no relevant event is supported.'
         ),
     })
@@ -125,6 +160,10 @@ def extract_candidates(model, document_id, index, announcement_types):
         event = _field('event_date', fields.get('event_date'), 'date', evidence)
         normalized = [_field(spec.field_code, fields.get(spec.field_code), spec.expect, evidence)
                       for spec in FIELD_SPECS[kind]]
+        if selected:
+            for field in normalized:
+                if field['field_code'].endswith('_date') and field['raw_value'] and field['value'] is None:
+                    field['reason'] = '保留原文期限表述；不能确定公历日期，需人工复核'
         currency = next((f['value'] for f in normalized if f['field_code'] == 'currency'), None)
         if currency and currency.upper() not in {'人民币', 'CNY', 'RMB', '人民币元', '元'}:
             for field in normalized:
@@ -135,4 +174,4 @@ def extract_candidates(model, document_id, index, announcement_types):
         records.append({'event_id': make_id('event', document_id, kind, ordinal, all_fields, length=20),
                         'document_id': document_id, 'company_code': company['value'], 'event_date': event['value'],
                         'announcement_type': kind, 'fields': all_fields})
-    return {'records': records, 'evidence': windows, 'warnings': [warning]}
+    return {'records': records, 'evidence': evidence_rows, 'warnings': [warning]}

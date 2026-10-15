@@ -13,6 +13,7 @@
   FINSCOPE_PROMPT_VERSION 提示词版本
   FINSCOPE_CODE_VERSION  代码版本
   FINSCOPE_EXTRACTION_BACKEND rules（默认）或 model（显式模型候选）
+  FINSCOPE_EXTRACTION_GRID 原生 PDF 网格证据（显式启用，默认 0）
 """
 
 from __future__ import annotations
@@ -68,6 +69,7 @@ class Settings:
     prompt_version: str = field(default_factory=lambda: os.environ.get("FINSCOPE_PROMPT_VERSION", "prompt-v1"))
     code_version: str = field(default_factory=lambda: os.environ.get("FINSCOPE_CODE_VERSION", "member-a-0.1.0"))
     extraction_backend: str = field(default_factory=lambda: os.environ.get("FINSCOPE_EXTRACTION_BACKEND", "rules"))
+    extraction_grid: bool = field(default_factory=lambda: _env_bool('FINSCOPE_EXTRACTION_GRID', False))
     # 归一化坐标系：契约规定 0—1000
     norm_scale: int = 1000
     # 行合并容差（PDF 用户空间单位）

@@ -58,7 +58,12 @@ class StructuredExtractionTask:
 
             if self.settings.extraction_backend == 'model':
                 from app.tasks.structured_extraction.model_extract import extract_candidates
-                result = extract_candidates(context.model, document_id, index, announcement_types)
+                cells = []
+                if self.settings.extraction_grid and row['media_type'] == 'application/pdf':
+                    from app.parse.grid import extract_grid_evidence
+                    cells, notes = extract_grid_evidence(document_id, self.parse.store.read_blob(row['sha256']))
+                    warnings.extend(notes)
+                result = extract_candidates(context.model, document_id, index, announcement_types, cells=cells)
                 records.extend(result['records'])
                 warnings.extend(result['warnings'])
                 for evidence in result['evidence']:

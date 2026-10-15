@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -48,6 +49,31 @@ def _input(context, aliases):
     if "source_items" in context:
         result["source_items"] = [clean({k: v for k, v in item.items() if k in allowed}) for item in context["source_items"]]
     return result
+
+
+def _restore_sources(value, reverse):
+    """Restore structured references and inline citations in display text only."""
+    if isinstance(value, dict):
+        declared = value.get('evidence_ids', [])
+        if 'evidence_ids' in value:
+            if not isinstance(declared, list) or any(not isinstance(eid, str) or eid not in reverse for eid in declared):
+                raise ValueError('Unknown source alias')
+            value['evidence_ids'] = [reverse[eid] for eid in declared]
+        for key, child in value.items():
+            if key == 'evidence_ids':
+                continue
+            if key in {'text', 'mechanism', 'impact_text'} and isinstance(child, str):
+                def citation(match):
+                    alias = match.group(1)
+                    if alias not in reverse or alias not in declared:
+                        raise ValueError('Inline source was not declared by this statement')
+                    return '[' + reverse[alias] + ']'
+                value[key] = re.sub(r'\[(ev_model_[0-9]+)\]', citation, child)
+            else:
+                _restore_sources(child, reverse)
+    elif isinstance(value, list):
+        for child in value:
+            _restore_sources(child, reverse)
 
 
 def request_json(model, task_code, evidence_ids, schema_name, context):
@@ -114,19 +140,7 @@ def request_json(model, task_code, evidence_ids, schema_name, context):
             if not isinstance(content, str):
                 raise ValueError("Completion must contain JSON text")
             output = strict_json(content)
-            def restore(value):
-                if isinstance(value, dict):
-                    for key, child in value.items():
-                        if key == "evidence_ids":
-                            if not isinstance(child, list) or any(eid not in reverse for eid in child):
-                                raise ValueError("Unknown source alias")
-                            value[key] = [reverse[eid] for eid in child]
-                        else:
-                            restore(child)
-                elif isinstance(value, list):
-                    for child in value:
-                        restore(child)
-            restore(output)
+            _restore_sources(output, reverse)
             validate_model_output(schema_name, output)
             return output, attempt
         except HTTPError as exc:
