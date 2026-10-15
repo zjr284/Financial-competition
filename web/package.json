@@ -7,6 +7,7 @@
     "test:live": "node tests/live.mjs",
     "test:ttm": "node tests/valuation.mjs",
     "test:synthesis": "node tests/synthesis.mjs",
+    "test:disclosures": "node tests/disclosures.mjs",
     "record:synthesis": "node tests/synthesis.mjs --record",
     "record:live": "node tests/live.mjs --record",
     "record": "node tests/record.mjs"

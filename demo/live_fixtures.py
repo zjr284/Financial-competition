@@ -26,6 +26,8 @@ def seed(app):
                 if len(matches) != 1:
                     raise ValueError("合成原句未在实际解析器中唯一定位")
                 evidence[old["evidence_id"]] = matches[0]["evidence_id"]
+    announcement = (ROOT / "announcement.txt").read_text(encoding="utf-8").splitlines()
+    documents["doc_c_announcement"] = app.upload_document("announcement.pdf", make_pdf(announcement))
     source = documents["doc_c_source"]
     facts = [{**fact, "fact_id": stable_id("fact", [source["document_id"], fact["fact_id"]]),
               "evidence_ids": [evidence[eid] for eid in fact["evidence_ids"]]} for fact in package["facts"]]

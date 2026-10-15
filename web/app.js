@@ -1,5 +1,18 @@
 import { valuationView, valuationHTML, valuationCSV } from "./valuation.js";
 import {
+  disclosureView,
+  disclosureHTML,
+  disclosureCSV,
+  fieldLabels,
+  statusLabels,
+  unitLabels,
+  scopeLabels,
+  periodLabels,
+  announcementLabels,
+  formulaLabels,
+  showValue,
+} from "./disclosures.js";
+import {
   synthesisView,
   synthesisHTML,
   synthesisCSV,
@@ -19,6 +32,7 @@ const state = {
   eventPage: null,
   valuation: null,
   synthesis: null,
+  disclosure: null,
 };
 const names = {
   structured_extraction: "公告结构化提取",
@@ -90,6 +104,9 @@ function reset() {
   state.result = null;
   state.valuation = null;
   state.synthesis = null;
+  state.disclosure = null;
+  $("export-disclosure-html").hidden = true;
+  $("export-disclosure-csv").hidden = true;
   $("export-synthesis-html").hidden = true;
   $("export-synthesis-csv").hidden = true;
   $("export-html").hidden = true;
@@ -247,6 +264,10 @@ function render(result) {
       }
       $("results").append(card);
     }
+  } else if (
+    ["structured_extraction", "financial_analysis"].includes(result.task_type)
+  ) {
+    renderDisclosure(result);
   } else if (result.task_type === "valuation") {
     renderValuation(result);
   } else if (
@@ -264,6 +285,181 @@ function render(result) {
   $("calculations").textContent = JSON.stringify(result.calculations, null, 2);
   $("raw").textContent = JSON.stringify(result, null, 2);
   renderReviews(result.review_items);
+}
+function renderDisclosure(result) {
+  const view = disclosureView(result, state.mode === "sample");
+  state.disclosure = view;
+  $("export-disclosure-html").hidden = false;
+  $("export-disclosure-csv").hidden = false;
+  $("summary").append(
+    node(
+      "p",
+      `${view.sample ? "全部虚构的接口演示样例。" : "实际 API 返回结果。"}原文与归一值分别保留；空值不表示零；计算值不作为财报直接披露值。`,
+    ),
+  );
+  const addRefs = (container, item) => {
+    const buttons = node("div", undefined, "evidence-buttons");
+    item.usableRefs.forEach((id, index) =>
+      buttons.append(evidenceButton(id, "查看字段来源 " + (index + 1))),
+    );
+    if (item.missingRefs.length)
+      container.append(node("p", "引用未在本结果登记，已停止跳转。", "reason"));
+    if (!item.usableRefs.length)
+      container.append(node("p", "无可用原文引用。", "reason"));
+    container.append(buttons);
+  };
+  for (const record of view.records) {
+    const section = node("section", undefined, "disclosure-record");
+    section.append(
+      node(
+        "h3",
+        `${announcementLabels[record.announcement_type] || record.announcement_type} · ${record.company_code}`,
+      ),
+      node(
+        "p",
+        `事件日期：${showValue(record.event_date)} · ${record.event_id}`,
+        "reason",
+      ),
+      node("p", `固定文档：${record.document_id}`, "reason"),
+    );
+    for (const field of record.fields) {
+      const card = node("article", undefined, "card field-card");
+      card.dataset.field = field.field_code;
+      card.append(
+        node("h4", fieldLabels[field.field_code] || field.field_code),
+        node(
+          "span",
+          `${statusLabels[field.status] || field.status} · ${field.status}`,
+          "tag",
+        ),
+        node("p", "原文写法：" + showValue(field.raw_value)),
+        node(
+          "p",
+          `归一值：${showValue(field.value)} · ${unitLabels[field.unit] || field.unit} (${field.unit})`,
+        ),
+      );
+      if (field.reason) card.append(node("p", field.reason, "reason"));
+      if (field.field_code === "document_id" && !field.evidence_ids.length)
+        card.append(node("p", "运行文档元数据，不是财报披露事实。", "reason"));
+      else addRefs(card, field);
+      section.append(card);
+    }
+    $("results").append(section);
+  }
+  for (const fact of view.facts) {
+    const card = node("article", undefined, "card financial-fact");
+    card.id = "fact-" + fact.fact_id;
+    card.dataset.metric = fact.metric;
+    card.append(
+      node("h3", fieldLabels[fact.metric] || fact.metric),
+      node(
+        "p",
+        `后端事实：${showValue(fact.value)} · ${unitLabels[fact.unit] || fact.unit} (${fact.unit})`,
+      ),
+      node(
+        "p",
+        `${fact.company_code} · ${scopeLabels[fact.statement_scope] || fact.statement_scope} · ${periodLabels[fact.period_type] || fact.period_type} · ${fact.period_start} 至 ${fact.period_end}`,
+      ),
+      node(
+        "p",
+        `${statusLabels[fact.review_status] || fact.review_status} · ${fact.review_status} · ${fact.restated ? "追溯调整" : "非追溯调整"}`,
+        "reason",
+      ),
+      node("p", fact.fact_id, "reason"),
+    );
+    if (fact.reason) card.append(node("p", fact.reason, "reason"));
+    card.append(
+      node("p", "接口未提供原文数值写法；点击来源核对原件。", "reason"),
+    );
+    addRefs(card, fact);
+    $("results").append(card);
+  }
+  const factButton = (id) => {
+    const button = node("button", "查看输入事实 " + id);
+    button.onclick = () =>
+      document
+        .getElementById("fact-" + id)
+        ?.scrollIntoView({ block: "center" });
+    return button;
+  };
+  for (const calc of view.calculations) {
+    const card = node("article", undefined, "card financial-calculation");
+    card.id = "calculation-" + calc.calculation_id;
+    card.append(
+      node(
+        "h3",
+        `工具计算 · ${formulaLabels[calc.formula_code] || calc.formula_code}`,
+      ),
+      node(
+        "p",
+        `计算值：${showValue(calc.value)} · ${unitLabels[calc.unit] || calc.unit} (${calc.unit})`,
+      ),
+      node(
+        "p",
+        `${statusLabels[calc.status] || calc.status} · ${calc.status} · 舍入：${calc.rounding_rule}`,
+        "reason",
+      ),
+      node("p", calc.calculation_id, "reason"),
+    );
+    if (calc.reason) card.append(node("p", calc.reason, "reason"));
+    for (const input of calc.inputs) {
+      if (input.fact) card.append(factButton(input.id));
+      else
+        card.append(
+          node("p", "输入事实未在本结果提供，仅保留 ID：" + input.id, "reason"),
+        );
+    }
+    for (const id of calc.input_calculation_ids) {
+      const target = view.calculations.find(
+        (item) => item.calculation_id === id,
+      );
+      if (!target) card.append(node("p", "上游计算缺失：" + id, "reason"));
+      else {
+        const button = node("button", "查看上游计算 " + id);
+        button.onclick = () =>
+          document
+            .getElementById("calculation-" + id)
+            ?.scrollIntoView({ block: "center" });
+        card.append(button);
+      }
+    }
+    card.append(node("pre", JSON.stringify(calc.parameters, null, 2)));
+    $("results").append(card);
+  }
+  for (const alert of view.alerts) {
+    const card = node("article", undefined, "card financial-alert");
+    const interpretations = {
+      supported: "后端标记有资料支持，仍需核对解释",
+      hypothesis: "待验证假设",
+      unresolved: "原因尚未确定",
+    };
+    card.append(
+      node("h3", "核查提示 · " + alert.alert_code),
+      node("p", alert.description),
+      node(
+        "p",
+        `级别：${alert.severity} · ${interpretations[alert.interpretation_status] || alert.interpretation_status}`,
+        "reason",
+      ),
+    );
+    for (const id of alert.fact_ids) {
+      if (view.facts.some((fact) => fact.fact_id === id))
+        card.append(factButton(id));
+      else card.append(node("p", "关联事实未提供：" + id, "reason"));
+    }
+    addRefs(card, alert);
+    $("results").append(card);
+  }
+  if (!(view.records.length || view.facts.length))
+    $("results").append(
+      node(
+        "p",
+        "未返回公告记录或财务事实；请核对资料范围及人工复核项。",
+        "reason",
+      ),
+    );
+  for (const issue of view.issues)
+    $("results").append(node("p", issue, "reason"));
 }
 function renderSynthesis(result) {
   const view = synthesisView(result, state.mode === "sample");
@@ -847,4 +1043,26 @@ function exportSynthesis(format) {
 }
 $("export-synthesis-html").onclick = () => exportSynthesis("html");
 $("export-synthesis-csv").onclick = () => exportSynthesis("csv");
+function exportDisclosure(format) {
+  if (!state.disclosure) return;
+  const raw =
+    format === "html"
+      ? disclosureHTML(state.disclosure)
+      : disclosureCSV(state.disclosure);
+  const url = URL.createObjectURL(
+    new Blob([raw], {
+      type:
+        format === "html"
+          ? "text/html;charset=utf-8"
+          : "text/csv;charset=utf-8",
+    }),
+  );
+  const link = node("a");
+  link.href = url;
+  link.download = `${state.mode === "sample" ? "synthetic-" : ""}${state.result.run_id}-fields.${format}`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("export-disclosure-html").onclick = () => exportDisclosure("html");
+$("export-disclosure-csv").onclick = () => exportDisclosure("csv");
 loadSample().catch(reportError);

@@ -298,6 +298,16 @@ blockquote {
 .semantic-section {
   margin: 22px 0;
 }
+.field-card,
+.financial-fact,
+.financial-calculation,
+.financial-alert,
+.disclosure-record {
+  overflow-wrap: anywhere;
+}
+.field-card h4 {
+  margin: 0 0 10px;
+}
 .ttm-card:target {
   outline: 2px solid var(--teal);
 }
