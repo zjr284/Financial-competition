@@ -180,5 +180,43 @@ class TTMQualityToolTests(unittest.TestCase):
         self.adjusted[0]['review_status']='needs_review';self.adjusted[0]['reason']='Pending reviewer'
         self.assertEqual(self.evaluate()[1]['status'],'needs_review')
 
+    def amount(self):
+        tool, share = self.evaluate()
+        return tool.calculate('nonrecurring_gap_amount', [], share['input_calculation_ids'], {})
+
+    def test_signed_gap_amount_and_percentage_use_same_upstream(self):
+        self.assertEqual((self.amount()['value'], self.amount()['unit']), ('70', 'CNY'))
+        for parent, adjusted in zip(self.parent, self.adjusted):
+            adjusted['value'] = parent['value']
+        self.assertEqual(self.amount()['value'], '0')
+        self.adjusted[0]['value'] = '150'
+        self.assertEqual(self.amount()['value'], '-50')
+        self.assertEqual(self.evaluate()[1]['value'], '41.6667')
+
+    def test_zero_parent_has_defined_amount_and_undefined_percentage(self):
+        for fact in self.parent:
+            fact['value'] = '0'
+        self.assertEqual(self.amount()['value'], '-50')
+        self.assertEqual(self.evaluate()[1]['status'], 'needs_review')
+
+    def test_amount_rejects_mismatched_company_and_unreviewed_inputs(self):
+        for fact in self.adjusted:
+            fact['company_code'] = '999991'
+        self.assertEqual(self.amount()['status'], 'needs_review')
+        self.setUp()
+        self.adjusted[0].update(review_status='needs_review', reason='Pending')
+        self.assertEqual(self.amount()['status'], 'needs_review')
+
+    def test_disclosed_period_amount_preserves_cents_and_restatement_basis(self):
+        parent, adjusted = copy.deepcopy(self.parent[0]), copy.deepcopy(self.adjusted[0])
+        parent['value'], adjusted['value'] = '100.12', '40.99'
+        tool = FinancialCalculator([parent, adjusted])
+        result = tool.calculate('nonrecurring_gap_amount', [parent['fact_id'], adjusted['fact_id']], [], {})
+        self.assertEqual(result['value'], '59.13')
+        adjusted['restated'] = True
+        tool = FinancialCalculator([parent, adjusted])
+        for code in ('nonrecurring_gap_amount', 'nonrecurring_gap_share'):
+            self.assertEqual(tool.calculate(code, [parent['fact_id'], adjusted['fact_id']], [], {})['status'], 'needs_review')
+
 if __name__ == '__main__':
     unittest.main()

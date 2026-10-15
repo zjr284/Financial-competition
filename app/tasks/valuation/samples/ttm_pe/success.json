@@ -622,11 +622,47 @@
         "ev_demo_999999_current",
         "ev_demo_999999_prior"
       ]
+    },
+    {
+      "review_id": "review_9eed58afa1f1b5f18bf3",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "Peer 999991 earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999991_annual",
+        "ev_demo_999991_current",
+        "ev_demo_999991_prior"
+      ]
+    },
+    {
+      "review_id": "review_f62f234d7b3fa36fe3f5",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "Peer 999992 earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999992_annual",
+        "ev_demo_999992_current",
+        "ev_demo_999992_prior"
+      ]
+    },
+    {
+      "review_id": "review_45d3bf531a521f0e2142",
+      "target_id": "run_demo_ttm_pe",
+      "reason": "Peer 999993 earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+      "status": "pending",
+      "evidence_ids": [
+        "ev_demo_999993_annual",
+        "ev_demo_999993_current",
+        "ev_demo_999993_prior"
+      ]
     }
   ],
   "warnings": [
     "接口演示样例：全部数据虚构；使用生产 FinancialCalculator，真实财报资料仍需独立复核。",
     "区间为企业股权总价值（人民币元），不是每股价格或投资建议",
-    "Target earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review"
+    "Target earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+    "Peer 999991 earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+    "Peer 999992 earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review",
+    "Peer 999993 earnings quality: missing adjusted profit inputs; PE earnings sustainability needs review"
   ]
 }
