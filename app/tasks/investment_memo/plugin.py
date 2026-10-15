@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from copy import deepcopy
 
 from app.tasks._finance_common import (
     review_item,
@@ -12,27 +13,31 @@ from app.tasks._finance_common import (
 )
 from contracts.ports import TaskContext
 from app.tasks.synthesis_sources import sources
+from app.tasks.investment_memo.local_facts import financial_appendix
 
 
 class InvestmentMemoTask:
     task_type = "investment_memo"
 
     def run(self, context: TaskContext, task_input: dict[str, Any]) -> dict[str, Any]:
+        local_statements, financial_reviews = financial_appendix(
+            context, task_input['company_code'], task_input['as_of_date'])
         source_items = sources(context, company=task_input['company_code'],
-                               as_of_date=task_input['as_of_date'], financial=True)
+                               as_of_date=task_input['as_of_date'], financial=False)
         known_ids = unique(
             evidence_id for item in source_items
             for evidence_id in item.get("evidence_ids", [])
         )
         if not known_ids:
-            reason = "No verified company or industry evidence is available"
+            reason = "No eligible qualitative excerpts; memo contains only available local financial facts"
+            local_ids = unique(eid for item in local_statements for eid in item['evidence_ids'])
             return {
                 "data": {
-                    "thesis": [], "evidence": [], "risks": [],
+                    "thesis": [], "evidence": local_statements, "risks": [],
                     "disconfirming_conditions": [], "monitoring_indicators": [],
                 },
-                "evidence_ids": [], "calculations": [],
-                "review_items": [review_item(context.run_id, reason)],
+                "evidence_ids": local_ids, "calculations": [],
+                "review_items": financial_reviews + [review_item(context.run_id, reason, local_ids)],
                 "warnings": [reason],
             }
         for evidence_id in known_ids:
@@ -45,8 +50,10 @@ class InvestmentMemoTask:
                 "company_code": task_input["company_code"],
                 "as_of_date": task_input["as_of_date"],
                 "source_items": source_items,
-                "instructions_version": "memo-scoped-sources-v4",
+                "instructions_version": "memo-qualitative-local-financial-v5",
                 "instructions": (
+                    "Only qualitative excerpts are supplied. Do not invent financial amounts, ratios or "
+                    "growth rates; verified financial facts are appended locally after your response. "
                     "Cite only archived evidence; separate fact, calculation, inference and opinion; "
                     "include risks and disconfirming conditions. Attribute disclosed statements to their source. "
                     "Preserve the company, product and value-chain stage to which each source claim applies. "
@@ -67,13 +74,14 @@ class InvestmentMemoTask:
                 ),
             },
         )
+        data = deepcopy(data)
         validate_task_data("MemoData", data)
         statements = (
             data["thesis"] + data["evidence"] + data["risks"]
             + data["disconfirming_conditions"]
         )
         evidence_ids = source_ids_for_statements(context, statements, known_ids)
-        reviews: list[dict[str, Any]] = []
+        reviews: list[dict[str, Any]] = list(financial_reviews)
         for statement in statements:
             if not statement["evidence_ids"]:
                 reviews.append(review_item(context.run_id, "Memo statement lacks source evidence"))
@@ -83,6 +91,10 @@ class InvestmentMemoTask:
                 reviews.append(review_item(context.run_id, "Memo judgment lacks assumptions or limits"))
         if not data["risks"] or not data["disconfirming_conditions"] or not data["monitoring_indicators"]:
             reviews.append(review_item(context.run_id, "Memo lacks risk, disconfirming condition or tracking metric"))
+        # Model citations were checked against qualitative inputs before adding local facts.
+        data['evidence'].extend(local_statements)
+        evidence_ids = unique(evidence_ids + [eid for item in local_statements for eid in item['evidence_ids']])
+        validate_task_data('MemoData', data)
         reviews.append(review_item(context.run_id, "Analyst must verify memo judgments before use", evidence_ids))
         return {
             "data": data,

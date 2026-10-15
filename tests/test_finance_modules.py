@@ -105,7 +105,14 @@ class EventFixture:
 
 class ModelFixture:
     def infer_json(self, task_code: str, evidence_ids: list[str], schema_name: str, context: dict) -> dict:
-        return MODEL_EXAMPLES[task_code]
+        data = copy.deepcopy(MODEL_EXAMPLES[task_code])
+        if task_code == 'investment_memo':
+            # The model sees qualitative sources only; financial evidence is appended locally.
+            for field in ('thesis', 'evidence', 'risks', 'disconfirming_conditions'):
+                for statement in data[field]:
+                    statement['text'] = '合成定性材料支持的条件判断'
+                    statement['evidence_ids'] = list(evidence_ids)
+        return data
 
 
 def context(items: list[dict], docs: tuple[str, ...], extra_documents: dict[str, str] | None = None) -> TaskContext:

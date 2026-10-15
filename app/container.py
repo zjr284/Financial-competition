@@ -140,13 +140,14 @@ class App:
 _CACHED: App | None = None
 
 
-def build_app(settings: Settings | None = None) -> App:
+def build_app(settings: Settings | None = None, *, model: Any = None) -> App:
     active = settings or get_settings()
     import os
-    backend = os.environ.get("FINSCOPE_MODEL_BACKEND", "offline-rule")
-    if backend not in {"offline-rule", "remote-json"}:
-        raise ValueError("Unknown FINSCOPE_MODEL_BACKEND")
-    model = RemoteJsonModel(active) if backend == "remote-json" else OfflineRuleModel(active)
+    if model is None:
+        backend = os.environ.get("FINSCOPE_MODEL_BACKEND", "offline-rule")
+        if backend not in {"offline-rule", "remote-json"}:
+            raise ValueError("Unknown FINSCOPE_MODEL_BACKEND")
+        model = RemoteJsonModel(active) if backend == "remote-json" else OfflineRuleModel(active)
     store = Store(active)
     documents = DocumentService(store, active)
     parse = ParseService(store, documents, active)

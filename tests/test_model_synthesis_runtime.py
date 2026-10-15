@@ -346,8 +346,42 @@ def test_command_runs_and_replays_the_same_pinned_response(runtime, monkeypatch,
                           '--documents', runtime.doc['document_id'], '--event', '供需变化']) == 0
     summary = json.loads(capsys.readouterr().out)
     assert summary['model_call_count'] == 1 and summary['status'] == 'needs_review'
+    for key in ('FINSCOPE_MODEL_ID', 'FINSCOPE_MODEL_REVISION', 'FINSCOPE_MODEL_KEY',
+                'FINSCOPE_MODEL_ENDPOINT', 'FINSCOPE_PROMPT_VERSION'):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv('FINSCOPE_MODEL_BACKEND', 'invalid-for-replay')
     assert main(common + ['replay', summary['run_id']]) == 0
     assert json.loads(capsys.readouterr().out)['replay_ok']
+    assert len(model_server.requests) == 1
+
+
+def test_memo_model_payload_has_only_qualitative_sources_and_appendix_stays_local(runtime, model_server):
+    from test_finance_modules import fact, public_fact
+    doc = runtime.app.upload_document('financial.csv', b'metric,value\nSYNTHETIC PRIVATE FINANCIAL LEDGER,123456789012345.67', disclosure_date='2026-08-01')
+    eid = runtime.app.parse_document(doc['document_id'])['evidence_ids'][0]
+    attach_document(runtime.app, runtime.manifest, doc['document_id'])
+    data = json.loads(runtime.manifest.read_text())
+    item = public_fact(fact('fact_private_revenue', '999999', 'revenue', '123456789012345.67', '2026-01-01', '2026-06-30'))
+    item['evidence_ids'] = [eid]
+    next(b for b in data['documents'] if b['document_id'] == doc['document_id'])['facts'].append(item)
+    runtime.manifest.write_text(json.dumps(data))
+    outcome = runtime.app.run_task({'api_version': '1.0.0', 'task_type': 'investment_memo',
+        'document_ids': [runtime.doc['document_id'], doc['document_id']],
+        'task_input': {'company_code': '999999', 'as_of_date': '2026-09-30'}})
+    assert outcome['status'] == 'needs_review'
+    sent = json.dumps(model_server.requests[0][0])
+    assert '123456789012345.67' not in sent and 'fact_private_revenue' not in sent and eid not in sent
+    assert 'SYNTHETIC PRIVATE FINANCIAL LEDGER' not in sent
+    user = json.loads(model_server.requests[0][0]['messages'][-1]['content'])
+    assert len(user['context']['source_items']) == 1
+    result = runtime.app.get_result(outcome['run_id'])
+    local = next(s for s in result['data']['evidence'] if eid in s['evidence_ids'])
+    assert '123456789012345.67' in local['text'] and local['kind'] == 'fact'
+    assert result['calculations'] == []
+    # The mutable global ledger may change later; replay must use the per-Run copy.
+    runtime.manifest.write_text('{"version": 1, "documents": []}')
+    proof = runtime.app.orchestrator.replay(outcome['run_id'])
+    assert proof['input_hash_match'] and proof['result_hash_match'] and proof['trace_match'] and proof['chain']['ok']
     assert len(model_server.requests) == 1
 
 
@@ -385,7 +419,8 @@ def test_alternative_excerpt_ports_cannot_bypass_owner_checks_with_a_different_k
 
 def test_model_extraction_runs_through_http_and_cold_offline_replay(runtime, model_server, monkeypatch):
     from dataclasses import replace
-    settings = replace(runtime.settings, extraction_backend='model')
+    from app.tasks.ab_runtime import current_code_version, execute
+    settings = replace(runtime.settings, extraction_backend='model', code_version=current_code_version())
     app = build_app(settings)
     try:
         doc = app.upload_document('synthetic-pledge.txt',
@@ -408,11 +443,11 @@ def test_model_extraction_runs_through_http_and_cold_offline_replay(runtime, mod
         assert field['value'] == '120000' and field['status'] == 'needs_review'
         assert doc['document_id'] not in json.dumps(model_server.requests[0][0])
         app.close()
-        monkeypatch.setenv('FINSCOPE_MODEL_BACKEND', 'offline-rule')
-        monkeypatch.delenv('FINSCOPE_MODEL_ENDPOINT')
-        app = build_app(settings)
-        proof = app.orchestrator.replay(outcome['run_id'])
-        assert proof['input_hash_match'] and proof['result_hash_match'] and proof['trace_match'] and proof['chain']['ok']
+        for key in ('FINSCOPE_MODEL_ID', 'FINSCOPE_MODEL_REVISION', 'FINSCOPE_MODEL_KEY', 'FINSCOPE_MODEL_ENDPOINT'):
+            monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv('FINSCOPE_EXTRACTION_BACKEND', 'rules')
+        code, proof = execute(settings.data_dir, None, run_id=outcome['run_id'])
+        assert code == 0 and proof['replay_ok'] and proof['input_hash_match'] and proof['result_hash_match']
         assert len(model_server.requests) == 1
     finally:
         app.close()
