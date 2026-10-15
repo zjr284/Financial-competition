@@ -50,7 +50,7 @@ def package():
         (InvestmentMemoTask(), {"company_code": "999999", "as_of_date": "2026-09-30"}, False),
     ]:
         port = SimpleNamespace(get_evidence=lambda eid: evidence, extract_facts=lambda ids, fields: [],
-                               archived_excerpts=lambda ids: [{"source_kind": "archived_excerpt", "text": evidence["text"], "evidence_ids": [evidence["evidence_id"]]}] if available else [])
+                               archived_excerpts=lambda ids: [{"source_kind": "archived_excerpt", "source_scope": "company", "company_code": "999999", "text": evidence["text"], "evidence_ids": [evidence["evidence_id"]]}] if available else [])
         context = TaskContext("run_demo_" + plugin.task_type + ("_empty" if not available else ""), (document["document_id"],),
                               SimpleNamespace(get_document=lambda did: document), port, FinancialCalculator(), FixtureModel(),
                               SimpleNamespace(append_event=lambda rid, event: None))

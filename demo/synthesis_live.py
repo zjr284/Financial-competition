@@ -59,7 +59,7 @@ def main():
         eid = eids[1]
         manifest = app.settings.data_dir / "reviewed_facts.json"
         init_manifest(app, manifest, [document["document_id"]])
-        for source_id in eids: register_excerpt(app, manifest, document["document_id"], source_id)
+        for source_id in eids: register_excerpt(app, manifest, document["document_id"], source_id, company_code="999999")
         install_role_b(app, manifest)
         prepare()
         api = ApiServer(app, port=0).start(background=True)
