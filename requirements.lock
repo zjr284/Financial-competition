@@ -31,3 +31,9 @@ cffi==2.1.1
 charset-normalizer==3.5.2
 cryptography==50.0.2
 pycparser==3.11
+
+# ---- 可选 OCR（Python >=3.11；默认不开启） ----
+rapidocr==3.9.2
+onnxruntime==1.30.0
+pypdfium2==5.14.0
+Pillow==12.3.0

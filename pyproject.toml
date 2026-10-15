@@ -13,6 +13,7 @@ dependencies = [
 pdf = ["pypdf>=5", "pdfminer.six>=20231228"]
 # 表格读取加速；缺失时使用内置 XLSX 解析器
 xlsx = ["openpyxl>=3"]
+ocr = ["rapidocr==3.9.2", "onnxruntime==1.30.0", "pypdfium2==5.14.0", "Pillow>=10,<13"]
 
 [project.scripts]
 fin-agent = "app.cli:main"

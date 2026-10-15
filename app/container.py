@@ -152,7 +152,7 @@ def build_app(settings: Settings | None = None, *, model: Any = None) -> App:
     documents = DocumentService(store, active)
     parse = ParseService(store, documents, active)
     events = EventLog(store, active)
-    ocr = OcrAdapter(active)
+    ocr = parse.ocr
     orchestrator = Orchestrator(store, documents, parse, events, active, model=model)
     return App(active, store, documents, parse, events, model, ocr, orchestrator)
 
