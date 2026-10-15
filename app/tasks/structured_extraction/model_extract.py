@@ -14,6 +14,33 @@ def _compact(text):
     return re.sub(r'\s+', '', to_halfwidth(text))
 
 
+# Include separators, magnitudes and signs in the source token. Comparing its
+# entire span prevents 250 from being "quoted" inside 1,250, -250 or 1.250.
+_NUMBER = re.compile(r'[+\-−]?[\d.,零〇○一壹二贰两三叁四肆五伍六陆七柒八捌九玖十拾百佰千仟万萬亿億]+')
+_DATE = re.compile(r'(?:[0-9]{4}年[0-9]{1,2}月[0-9]{1,2}日|[0-9]{4}([./-])[0-9]{1,2}\1[0-9]{1,2})')
+
+
+def _complete_numeric_quote(raw, excerpt):
+    raw, excerpt = _compact(raw), _compact(excerpt)
+    parts = [match.span() for match in _NUMBER.finditer(raw)]
+    source_spans = {match.span() for match in _NUMBER.finditer(excerpt)}
+    return bool(parts) and any(all((match.start()+lo, match.start()+hi) in source_spans for lo, hi in parts)
+                               for match in re.finditer(re.escape(raw), excerpt))
+
+
+def _unqualified_date_quote(raw, excerpt):
+    raw, excerpt = _compact(raw), _compact(excerpt)
+    for match in re.finditer(re.escape(raw), excerpt):
+        before, after = excerpt[:match.start()], excerpt[match.end():]
+        if re.search(r'(?:不早于|不晚于|不迟于|早于|晚于|预计|暂定|拟定|计划|最早|最晚)(?:为|于|在)?$|(?:或|至|到|~|—)$', before):
+            continue
+        if re.match(r'(?:之前|以后|之后|以前|前|后|左右|或|至|到|~|—)', after):
+            continue
+        if _complete_numeric_quote(raw, excerpt[max(0, match.start()-1):match.end()+1]):
+            return True
+    return False
+
+
 def source_windows(index, *, exclude=()):
     """At most 16 short, spatially contiguous excerpts from the first two pages."""
     windows = []
@@ -56,10 +83,20 @@ def _field(code, candidate, expect, evidence):
         return field_payload(code, None, expect=expect, reason='候选原值不在所引用原文中，已拒绝')
     reason = '模型原文候选；仅完成定位及确定性归一化，仍需人工复核'
     value = field_payload(code, raw, expect=expect, evidence_ids=cited, status='needs_review', reason=reason)
-    if expect == 'date' and value['value']:
-        try:
-            date.fromisoformat(value['value'])
-        except ValueError:
+    if expect in {'share', 'amount', 'percent'} and not any(
+            _complete_numeric_quote(raw, evidence[eid]['text']) for eid in cited):
+        value.update(value=None, reason='候选截取了完整数值的一部分或遗漏正负号，已拒绝；需人工复核')
+    if expect == 'date':
+        if not _DATE.fullmatch(_compact(raw)):
+            value.update(value=None, reason='原文不是单个明确日期；条件、范围、多日期或不完整日期需人工复核')
+        elif not any(_unqualified_date_quote(raw, evidence[eid]['text']) for eid in cited):
+            value.update(value=None, reason='引用中的日期带有条件、范围或候选未引用完整日期，需人工复核')
+        elif value['value']:
+            try:
+                date.fromisoformat(value['value'])
+            except ValueError:
+                value.update(value=None, reason='原文日期不是有效的公历日期')
+        else:
             value.update(value=None, reason='原文日期不是有效的公历日期')
     if expect == 'percent' and not re.fullmatch(r'[+-]?(?:\d+(?:\.\d+)?|\.\d+)%', _compact(raw).replace(',', '')):
         value.update(value=None, reason='原文不是单个明确的百分数，拒绝猜测比例')
@@ -160,10 +197,6 @@ def extract_candidates(model, document_id, index, announcement_types, *, cells=N
         event = _field('event_date', fields.get('event_date'), 'date', evidence)
         normalized = [_field(spec.field_code, fields.get(spec.field_code), spec.expect, evidence)
                       for spec in FIELD_SPECS[kind]]
-        if selected:
-            for field in normalized:
-                if field['field_code'].endswith('_date') and field['raw_value'] and field['value'] is None:
-                    field['reason'] = '保留原文期限表述；不能确定公历日期，需人工复核'
         currency = next((f['value'] for f in normalized if f['field_code'] == 'currency'), None)
         if currency and currency.upper() not in {'人民币', 'CNY', 'RMB', '人民币元', '元'}:
             for field in normalized:

@@ -115,3 +115,83 @@ def test_new_pledge_windows_exclude_the_cumulative_position_section():
     text = TEXT+'\n2、股东股份累计被质押的情况\n累计持股12345万股'
     windows = source_windows(DocumentIndex.from_plain_text('doc_synthetic', text))
     assert all('12345' not in item['text'] for item in windows)
+
+
+@pytest.mark.parametrize('expect,source,raw', [
+    ('share', '本次质押股数：1,250万股', '250万股'),
+    ('share', '本次质押股数：-250万股', '250万股'),
+    ('share', '本次质押股数：+250万股', '250万股'),
+    ('share', '本次质押股数：−250万股', '250万股'),
+    ('share', '本次质押股数：1.250万股', '250万股'),
+    ('share', '本次质押股数：一百五十万股', '五十万股'),
+    ('percent', '占公司总股本比例：10.12%', '0.12%'),
+    ('percent', '占公司总股本比例：-0.12%', '0.12%'),
+    ('percent', '占公司总股本比例：10.12%', '.12%'),
+    ('amount', '人民币合同金额：1,250.75万元', '250.75万元'),
+    ('amount', '人民币合同金额：1,250.75万元', '75万元'),
+    ('amount', '人民币合同金额：-250万元', '250万元'),
+    ('amount', '人民币合同金额：1,250万元', '250万元'),
+])
+def test_partial_numeric_tokens_never_become_determined_values(expect, source, raw):
+    candidate = {'raw_value': raw, 'evidence_ids': ['ev_synthetic']}
+    field = _field('synthetic_numeric', candidate, expect, {'ev_synthetic': {'text': source}})
+    assert field['value'] is None and field['status'] == 'needs_review'
+    assert field['raw_value'] == raw and field['evidence_ids'] == ['ev_synthetic'] and '完整数值' in field['reason']
+
+
+@pytest.mark.parametrize('expect,raw,want', [
+    ('share', '1,250万股', '12500000'), ('share', '-250万股', '-2500000'),
+    ('share', '+250万股', '2500000'), ('share', '一百五十万股', '1500000'),
+    ('percent', '10.12%', '10.12'), ('percent', '-0.12%', '-0.12'),
+    ('percent', '.12%', '0.12'), ('amount', '人民币1,250.75万元', '12507500'),
+    ('amount', '-250万元', '-2500000'), ('amount', '１，２５０万元', '12500000'),
+])
+def test_complete_numeric_quotes_still_normalize(expect, raw, want):
+    field = _field('synthetic_numeric', {'raw_value': raw, 'evidence_ids': ['ev_synthetic']}, expect,
+                   {'ev_synthetic': {'text': '字段：'+raw+'；下一字段'}})
+    assert field['value'] == want and field['status'] == 'needs_review'
+
+
+@pytest.mark.parametrize('raw', [
+    '2026年9月21日或2026年9月30日', '不早于2026年9月21日',
+    '2026年9月21日至2026年9月30日', '2026-09-21~2026-09-30',
+    '预计2026年9月21日', '2026年9月21日后', '2026年9月', '解除质押日',
+])
+def test_ambiguous_or_conditional_date_preserves_quote_but_has_no_calendar_value(raw):
+    field = _field('pledge_end_date', {'raw_value': raw, 'evidence_ids': ['ev_synthetic']}, 'date',
+                   {'ev_synthetic': {'text': '质押到期日：'+raw}})
+    assert field['value'] is None and field['status'] == 'needs_review'
+    assert field['raw_value'] == raw and field['evidence_ids'] == ['ev_synthetic'] and field['reason']
+
+
+@pytest.mark.parametrize('raw', ['2026年9月21日', '2026-09-21', '2026/9/21', '2026.9.21', '２０２６年９月２１日'])
+def test_single_explicit_date_remains_supported(raw):
+    field = _field('pledge_start_date', {'raw_value': raw, 'evidence_ids': ['ev_synthetic']}, 'date',
+                   {'ev_synthetic': {'text': '质押起始日：'+raw}})
+    assert field['value'] == '2026-09-21' and field['status'] == 'needs_review'
+
+
+def test_complete_numeric_occurrence_in_any_cited_excerpt_is_sufficient():
+    candidate = {'raw_value': '250万股', 'evidence_ids': ['ev_large', 'ev_exact']}
+    source = {'ev_large': {'text': '股数1,250万股'}, 'ev_exact': {'text': '股数250万股'}}
+    assert _field('pledged_shares', candidate, 'share', source)['value'] == '2500000'
+
+
+@pytest.mark.parametrize('source,raw', [
+    ('不早于2026年9月21日', '2026年9月21日'),
+    ('2026年9月21日或2026年9月30日', '2026年9月21日'),
+    ('2026年9月21日或2026年9月30日', '2026年9月30日'),
+    ('2026年9月21日至2026年9月30日', '2026年9月30日'),
+    ('预计于2026年9月21日', '2026年9月21日'),
+    ('12026年9月21日', '2026年9月21日'),
+])
+def test_model_cannot_remove_date_qualifiers_or_truncate_a_year(source, raw):
+    field = _field('pledge_end_date', {'raw_value': raw, 'evidence_ids': ['ev_synthetic']}, 'date',
+                   {'ev_synthetic': {'text': source}})
+    assert field['value'] is None and field['raw_value'] == raw and field['evidence_ids'] == ['ev_synthetic']
+
+
+def test_distinct_explicit_date_fields_in_the_same_window_are_not_a_range():
+    field = _field('pledge_start_date', {'raw_value': '2026年9月21日', 'evidence_ids': ['ev_synthetic']}, 'date',
+                   {'ev_synthetic': {'text': '公告日期：2026年9月22日；质押起始日：2026年9月21日'}})
+    assert field['value'] == '2026-09-21'

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -146,7 +147,7 @@ def request_json(model, task_code, evidence_ids, schema_name, context):
         except HTTPError as exc:
             retry = exc.code in {408, 429, 500, 502, 503, 504}
             exc.close()
-        except (URLError, TimeoutError, ConnectionError, OSError):
+        except (URLError, TimeoutError, ConnectionError, OSError, HTTPException):
             retry = True
         except (ValueError, TypeError, KeyError, IndexError, UnicodeError, AppError):
             retry = False

@@ -47,6 +47,16 @@ def model_server():
             response = {'model': 'protocol-fixture', 'choices': [{'finish_reason': 'stop',
                          'message': {'content': json.dumps(output, ensure_ascii=False)}}]}
             status, raw = state.replies.pop(0) if state.replies else (200, json.dumps(response).encode())
+            if status == 'broken_chunked':
+                self.send_response(200)
+                self.send_header('Transfer-Encoding', 'chunked')
+                self.send_header('Connection', 'close')
+                self.end_headers()
+                # Declare a larger chunk, then disconnect midway through it.
+                self.wfile.write(b'100\r\n'+raw)
+                self.wfile.flush()
+                self.close_connection = True
+                return
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(raw)))
@@ -186,6 +196,25 @@ def test_retry_transient_failure_and_pin_attempt_count(runtime, model_server):
     outcome = run(runtime)
     assert outcome['status'] == 'needs_review' and len(model_server.requests) == 2
     assert runtime.app.model.calls[-1].attempts == 2
+
+
+def test_broken_chunked_response_retries_and_recovers(runtime, model_server):
+    model_server.replies = [('broken_chunked', b'partial-provider-secret')]
+    outcome = run(runtime)
+    assert outcome['status'] == 'needs_review' and len(model_server.requests) == 2
+    assert runtime.app.model.calls[-1].attempts == 2
+    assert 'partial-provider-secret' not in json.dumps(runtime.app.events.all_events(outcome['run_id']))
+
+
+def test_broken_chunked_response_exhaustion_is_redacted_model_error(runtime, model_server):
+    model_server.replies = [('broken_chunked', b'partial-provider-secret')] * 2
+    outcome = run(runtime)
+    assert outcome['status'] == 'failed' and outcome['error']['code'] == 'MODEL_UNAVAILABLE'
+    assert outcome['error']['retryable'] and outcome['error']['details']['attempts'] == 2
+    assert len(model_server.requests) == 2
+    assert 'partial-provider-secret' not in json.dumps(outcome)
+    assert 'partial-provider-secret' not in json.dumps(runtime.app.events.all_events(outcome['run_id']))
+    assert not list((runtime.settings.runs_dir/outcome['run_id']/'model-calls').glob('*.json'))
 
 
 @pytest.mark.parametrize('model_id', ['qwen3.7-plus', 'qwen3.7-plus-2026-05-26', 'protocol-fixture'])
