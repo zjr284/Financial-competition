@@ -1,4 +1,4 @@
-"""导出不含模型决策的标注模板，合并两人标注及第三人裁决为金标。"""
+"""导出核查/语义结果的空白标注模板，合并两人标注及第三人裁决。"""
 import argparse
 import json
 from pathlib import Path
@@ -11,13 +11,17 @@ ERROR_TYPES = set(SCHEMA["$defs"]["VerificationData"]["properties"]["checks"]["i
 
 def template(result, dataset_id, company_code, split, synthetic):
     validate("TaskResult", result)
-    if result["task_type"] != "research_verification":
-        raise ValueError("仅接受核查 TaskResult")
-    records = [{"claim_id": check["claim_id"], "company_code": company_code, "split": split,
+    if result["task_type"] in {"industry_impact", "investment_memo"}:
+        from eval.synthesis_records import records as semantic_records
+        records = semantic_records(result, company_code, split)
+    elif result["task_type"] == "research_verification":
+        records = [{"claim_id": check["claim_id"], "company_code": company_code, "split": split,
                 "sentence": check["sentence"], "draft_evidence_id": check["draft_evidence_id"],
                 "source_evidence_ids": check["source_evidence_ids"], "calculation_id": check["calculation_id"],
                 "annotation": {"annotator": "", "decision": "", "error_type": "", "reason": ""}}
-               for check in result["data"]["checks"]]
+                   for check in result["data"]["checks"]]
+    else:
+        raise ValueError("仅接受核查、产业链或备忘录 TaskResult")
     check_company_split(records)
     if not records or len({row["claim_id"] for row in records}) != len(records):
         raise ValueError("声明为空或重复")

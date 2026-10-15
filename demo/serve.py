@@ -19,6 +19,7 @@ class Handler(SimpleHTTPRequestHandler):
             name = self.path.removeprefix("/fixtures/")
             allowed = {d["filename"]: ROOT / "demo" / "fixtures" / d["filename"] for d in load_package()["documents"]}
             allowed.update(fixture_paths())
+            allowed["synthesis.txt"] = ROOT / "demo" / "fixtures" / "synthesis.txt"
             if name not in allowed:
                 self.send_error(404)
                 return

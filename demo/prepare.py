@@ -5,6 +5,7 @@ from pathlib import Path
 from demo.adapters import load_package
 from demo.run_demo import run
 from demo.ttm_display import package as ttm_package
+from demo.synthesis_fixtures import package as synthesis_package
 from app.tasks.research_verification.support import digest
 
 
@@ -17,6 +18,11 @@ def prepare():
         package[key].extend(ttm[key])
     package["ttm_pending_facts"] = ttm["pending_facts"]
     results.extend(ttm_results)
+    synthesis, synthesis_results = synthesis_package()
+    for key in ("documents", "evidence", "facts"):
+        package[key].extend(synthesis[key])
+    results.extend(synthesis_results)
+    manifest["synthesis_notice"] = "全部虚构的固定协议响应，不代表模型效果或人工金标"
     manifest["result_data_hashes"] = [digest(result["data"]) for result in results]
     manifest["ttm_notice"] = "全部虚构；计算器版本见各结果 warnings；待复核样例的一项原始利润未确认，不允许用于估值"
     (root / "web" / "demo.json").write_text(json.dumps({"package": package, "results": results,
