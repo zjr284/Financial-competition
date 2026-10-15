@@ -32,8 +32,20 @@ def timing(scene, lengths):
     return speed, [n / speed + gap for n in lengths]
 
 
+def silent_timing(scene):
+    """按 25fps 分配逐句录音窗口，尾帧不丢失、不依赖旧机器配音。"""
+    duration = Decimal(str(scene['duration']))
+    count = len(scene['speech'])
+    frames = duration * 25
+    if not count or duration <= 0 or frames != int(frames) or frames < count:
+        raise ValueError('无配音片段须有逐句讲稿，且时长对齐 25fps')
+    each, extra = divmod(int(frames), count)
+    return [Decimal(each + (i < extra)) / 25 for i in range(count)]
+
+
 def build(storyboard, assets, voices, output, font_path):
-    storyboard, assets, voices, output = map(Path, (storyboard, assets, voices, output))
+    storyboard, assets, output = map(Path, (storyboard, assets, output))
+    voices = Path(voices) if voices else None
     if output.exists():
         raise ValueError('使用全新目录，保留旧剪辑')
     plan = json.loads(storyboard.read_text(encoding='utf-8'))
@@ -48,11 +60,12 @@ def build(storyboard, assets, voices, output, font_path):
         for j, text in enumerate(scene['speech']):
             if not text.strip():
                 raise ValueError('字幕不可为空')
-            file = voices / f'{i:02}-{j:02}.wav'
-            with wave.open(str(file)) as wav:
-                lengths.append(Decimal(wav.getnframes()) / wav.getframerate())
+            file = voices / f'{i:02}-{j:02}.wav' if voices else None
+            if file:
+                with wave.open(str(file)) as wav:
+                    lengths.append(Decimal(wav.getnframes()) / wav.getframerate())
             audio.append(file)
-        speed, durations = timing(scene, lengths)
+        speed, durations = timing(scene, lengths) if voices else (Decimal(1), silent_timing(scene))
         names = scene.get('assets', [scene['asset']] * len(audio))
         if len(names) != len(audio):
             raise ValueError('逐句素材数量与配音不一致')
@@ -60,11 +73,11 @@ def build(storyboard, assets, voices, output, font_path):
         for picture in pictures:
             if picture and not picture.is_file():
                 raise ValueError(f'缺少实际素材：{picture.name}')
-        inputs += audio + [p for p in pictures if p]
+        inputs += [p for p in audio + pictures if p]
         prepared.append((scene, audio, pictures, speed, durations))
     output.mkdir(parents=True)
     fonts = {size: ImageFont.truetype(str(font_path), size) for size in (24, 28, 32, 38, 48, 62)}
-    subtitles, cursor, concat = [], Decimal(0), []
+    subtitles, cursor, concat, recording = [], Decimal(0), [], []
     def stamp(t):
         millis = int(t * 1000)
         return f'{millis//3600000:02}:{millis//60000%60:02}:{millis//1000%60:02},{millis%1000:03}'
@@ -96,17 +109,30 @@ def build(storyboard, assets, voices, output, font_path):
                 raise ValueError('单条字幕过长，请拆句')
             for n,line in enumerate(lines):
                 draw.text(((1920-draw.textlength(line,font=fonts[38]))/2,940+n*48),line,font=fonts[38],fill='white')
-            draw.text((60,1040),plan['notice'],font=fonts[24],fill='#b3c6cd')
+            notice = plan['notice'] if voices else '待配音 · ' + plan['notice']
+            draw.text((60,1040),notice,font=fonts[24],fill='#b3c6cd')
             frame=output/f'{i:02}-{j:02}.png';image.save(frame)
             clip=output/f'{i:02}-{j:02}.mp4'
-            subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-n','-loop','1','-framerate','25','-i',str(frame),
-                '-i',str(wav),'-af',f'atempo={speed},apad','-t',str(duration),'-r','25','-c:v','libx264',
-                '-preset','fast','-crf','22','-pix_fmt','yuv420p','-c:a','aac','-ar','48000','-ac','2',str(clip)],check=True)
+            command=['ffmpeg','-hide_banner','-loglevel','error','-n','-loop','1','-framerate','25','-i',str(frame)]
+            if wav:
+                command += ['-i',str(wav),'-af',f'atempo={speed},apad']
+            command += ['-t',str(duration),'-r','25','-c:v','libx264','-preset','fast','-crf','22','-pix_fmt','yuv420p']
+            command += ['-c:a','aac','-ar','48000','-ac','2'] if wav else ['-an']
+            subprocess.run(command+[str(clip)],check=True)
             concat.append(f"file '{clip.name}'")
             subtitles.append(f'{len(subtitles)+1}\n{stamp(cursor)} --> {stamp(cursor+duration)}\n{speech}\n')
+            recording.append({'scene':i+1,'sentence':j+1,'start':stamp(cursor),'end':stamp(cursor+duration),
+                              'duration_seconds':str(duration),'text':speech})
             cursor += duration
     (output/'clips.txt').write_text('\n'.join(concat),encoding='utf-8')
     (output/'字幕.srt').write_text('\n'.join(subtitles),encoding='utf-8-sig')
+    (output/'配音时间表.json').write_text(json.dumps(recording,ensure_ascii=False,indent=2),encoding='utf-8')
+    script=['# 逐句配音时间表', '', f'视频总长 {stamp(total)}，按下列窗口录音；每句末尾可自然留白，不需填满。',
+            '可录真人声音，或提供 Fish Audio 的逐句 WAV；本版' + ('已有外部提供的音轨。' if voices else '没有配音音轨。'), '']
+    for row in recording:
+        script += [f'## {row["scene"]:02}-{row["sentence"]:02}　{row["start"]} → {row["end"]}（{row["duration_seconds"]}秒）',
+                   '', row['text'], '']
+    (output/'配音时间表.md').write_text('\n'.join(script),encoding='utf-8')
     final=output/'金融投研智能体_初赛审阅稿.mp4'
     subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-n','-f','concat','-safe','0','-i',str(output/'clips.txt'),
                     '-c','copy','-movflags','+faststart',str(final)],check=True)
@@ -114,10 +140,12 @@ def build(storyboard, assets, voices, output, font_path):
         'format=duration,size:stream=codec_type,codec_name,width,height','-of','json',str(final)],text=True))
     if Decimal(probe['format']['duration'])>300 or int(probe['format']['size'])>500_000_000:
         raise ValueError('导出超过时长或大小限制')
-    if not any(s['codec_type']=='audio' for s in probe['streams']):
-        raise ValueError('导出缺少音轨')
+    has_audio=any(s['codec_type']=='audio' for s in probe['streams'])
+    if has_audio != bool(voices):
+        raise ValueError('导出音轨与所选配音模式不一致')
     revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
     report={'code_version':revision,'duration_planned':str(total),'probe':probe,'review_draft':True,
+            'narration_mode':'provided_wav' if voices else 'silent_for_user_recording',
             'human_gold':False,'holdout_metrics':None,
             'input_sha256':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
             'video_sha256':hashlib.sha256(final.read_bytes()).hexdigest()}
@@ -129,7 +157,10 @@ def build(storyboard, assets, voices, output, font_path):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    for name in ('storyboard','assets','voices','output','font'):
+    for name in ('storyboard','assets','output','font'):
         parser.add_argument('--'+name,required=True)
+    narration=parser.add_mutually_exclusive_group(required=True)
+    narration.add_argument('--voices',help='已选定的 Fish Audio 或真人逐句 WAV 目录')
+    narration.add_argument('--no-voice',action='store_true',help='无音轨，保留字幕和逐句录音窗口')
     args=parser.parse_args()
     build(args.storyboard,args.assets,args.voices,args.output,args.font)
