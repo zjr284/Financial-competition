@@ -70,8 +70,10 @@ def _restore_sources(value, reverse):
                         raise ValueError('Inline source was not declared by this statement')
                     return reverse[alias]
                 def restore(text):
-                    restored = re.sub(r'\b(ev_model_[0-9]+)\b', citation, text)
-                    if re.search(r'\bev_model_[A-Za-z0-9_]+', restored):
+                    # Alias identifiers are ASCII; adjacent Chinese prose is not
+                    # part of the identifier, unlike Python's Unicode \w.
+                    restored = re.sub(r'\b(ev_model_[0-9]+)\b', citation, text, flags=re.ASCII)
+                    if re.search(r'ev_model_[A-Za-z0-9_]+', restored):
                         raise ValueError('Unresolved source alias in display text')
                     return restored
                 if isinstance(child, str):

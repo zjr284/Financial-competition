@@ -120,6 +120,26 @@ def test_display_aliases_must_be_valid_and_declared_by_the_statement(alias):
                          {'ev_model_0001':'ev_original','ev_model_0002':'ev_other'})
 
 
+@pytest.mark.parametrize('field', ['text', 'impact_text', 'assumptions', 'limitations'])
+def test_chinese_adjacent_display_aliases_are_restored(field):
+    from app.models.remote import _restore_sources
+    text = '根据ev_model_0001披露'
+    item = {field: [text] if field in {'assumptions', 'limitations'} else text,
+            'evidence_ids': ['ev_model_0001']}
+    _restore_sources(item, {'ev_model_0001': 'ev_synthetic_original'})
+    expected = '根据ev_synthetic_original披露'
+    assert item[field] == ([expected] if isinstance(item[field], list) else expected)
+    assert item['evidence_ids'] == ['ev_synthetic_original']
+
+
+@pytest.mark.parametrize('alias', ['ev_model_0002', 'ev_model_9999', 'ev_model_unknown'])
+def test_chinese_adjacent_unknown_or_undeclared_aliases_are_rejected(alias):
+    from app.models.remote import _restore_sources
+    with pytest.raises(ValueError):
+        _restore_sources({'text': '根据'+alias+'披露', 'evidence_ids': ['ev_model_0001']},
+                         {'ev_model_0001': 'ev_synthetic_original', 'ev_model_0002': 'ev_other'})
+
+
 @pytest.fixture
 def runtime(tmp_path, monkeypatch, model_server):
     monkeypatch.setenv('FINSCOPE_MODEL_BACKEND', 'remote-json')
