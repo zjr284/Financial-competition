@@ -40,7 +40,15 @@ const service = spawn(
   {
     cwd: "..",
     windowsHide: true,
-    env: { ...process.env, PYTHONUTF8: "1", PYTHONUNBUFFERED: "1" },
+    env: {
+      ...process.env,
+      PYTHONUTF8: "1",
+      PYTHONUNBUFFERED: "1",
+      FINSCOPE_MODEL_BACKEND: "offline-rule",
+      FINSCOPE_MODEL_ENDPOINT: "",
+      FINSCOPE_MODEL_KEY: "",
+      FINSCOPE_EXTRACTION_BACKEND: "rules",
+    },
   },
 );
 let stdout = "",
@@ -103,7 +111,12 @@ try {
     document.body.append(banner);
   });
   const pause = async () => {
-    if (recording) await page.waitForTimeout(4500);
+    if (recording) {
+      await page
+        .locator("#results")
+        .evaluate((element) => element.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(4500);
+    }
   };
   await page.getByRole("button", { name: "连接团队 API" }).click();
   await page.locator("#api-base").fill(api);
@@ -187,6 +200,115 @@ try {
   await page.getByText("规则暂定评分 45/100", { exact: true }).waitFor();
   results.push(JSON.parse(await page.locator("#raw").textContent()));
   await pause();
+  // 两项重点题继续走实际 A/B/C HTTP；合成 PDF 和事实不代表真实金融验收。
+  for (const task of ["financial_analysis", "structured_extraction"]) {
+    await page.locator("#task-type").selectOption(task);
+    await page
+      .locator("#document-ids")
+      .fill(
+        task === "financial_analysis"
+          ? seeded.documents.source
+          : seeded.documents.announcement,
+      );
+    await page.locator("#task-input").fill(
+      JSON.stringify(
+        task === "financial_analysis"
+          ? {
+              company_code: "999999",
+              periods: ["2025-12-31", "2024-12-31"],
+              statement_scope: "consolidated",
+            }
+          : { announcement_types: ["pledge"] },
+      ),
+    );
+    await page.locator("#run").click();
+    await page.waitForFunction(
+      () => !document.getElementById("export").disabled,
+    );
+    const result = JSON.parse(await page.locator("#raw").textContent());
+    assert.equal(result.task_type, task);
+    results.push(result);
+    if (task === "financial_analysis") {
+      assert.equal(
+        result.calculations.find((calc) => calc.formula_code === "yoy").value,
+        "20",
+      );
+      assert.equal(
+        await page.locator(".financial-fact").count(),
+        result.data.facts.length,
+      );
+      assert.match(
+        await page.locator(".financial-calculation").first().textContent(),
+        /20/,
+      );
+    } else {
+      const field = page
+        .locator('.field-card[data-field="pledged_shares"]')
+        .first();
+      await field.waitFor();
+      assert.match(await field.textContent(), /12500000/);
+      assert.match(
+        await page
+          .locator('.field-card[data-field="pledge_end_date"]')
+          .first()
+          .textContent(),
+        /未确定/,
+      );
+      await field.getByRole("button").first().click();
+      await page
+        .locator("#location-note")
+        .filter({ hasText: "固定 PDF 原件已校验哈希" })
+        .waitFor();
+      assert.match(
+        await page.locator("#evidence-text").textContent(),
+        /1,250万股/,
+      );
+      assert.ok(await page.locator("#bbox").isVisible());
+      await page.screenshot({
+        path: path.join(output, "c-live-extraction.png"),
+        fullPage: true,
+      });
+    }
+    for (const format of ["html", "csv"]) {
+      const pending = page.waitForEvent("download");
+      await page.locator("#export-disclosure-" + format).click();
+      const download = await pending;
+      const raw = await fs.readFile(await download.path(), "utf8");
+      assert.ok(raw.includes(result.run_id));
+      assert.ok(!download.suggestedFilename().startsWith("synthetic-"));
+      // API 不声明资料真假，导出不能仅因真实 HTTP 就声称 real/synthetic=false。
+      if (format === "csv") assert.ok(raw.includes("not_declared_by_api"));
+    }
+    const stored = await fetch(`${api}/runs/${result.run_id}/result`);
+    assert.equal(stored.status, 200);
+    assert.deepEqual(await stored.json(), result);
+    await pause();
+  }
+  // 交接包只能读取既有结果，不能通过重新执行来冒充旧 Run。
+  const mutations = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith(api) && request.method() !== "GET")
+      mutations.push(request.method());
+  });
+  await page.locator("#saved-run-id").fill(results[0].run_id);
+  await page.locator("#load-existing").click();
+  await page
+    .locator("#mode-badge")
+    .filter({ hasText: "已有运行结果" })
+    .waitFor();
+  await page.waitForFunction(
+    () => !document.getElementById("load-existing").disabled,
+  );
+  assert.deepEqual(
+    JSON.parse(await page.locator("#raw").textContent()),
+    results[0],
+  );
+  assert.deepEqual(mutations, []);
+  await page.locator("#saved-run-id").fill("run_notfound");
+  await page.locator("#load-existing").click();
+  await page.locator("#status").filter({ hasText: "操作失败" }).waitFor();
+  assert.equal(await page.locator("#export").isDisabled(), true);
+  assert.deepEqual(mutations, []);
   assert.deepEqual(errors, []);
   const video = page.video();
   await context.close();
@@ -205,7 +327,7 @@ try {
     ),
   );
   console.log(
-    "Actual HTTP browser checks passed: upload, C success/mixed/quality, B calculation, PDF evidence and review",
+    "Actual HTTP browser checks passed: upload, C success/mixed/quality, extraction fields/PDF, financial facts/calculations, HTML/CSV and review",
   );
 } finally {
   if (browser) await browser.close();

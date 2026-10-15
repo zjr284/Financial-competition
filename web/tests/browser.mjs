@@ -72,6 +72,100 @@ try {
     );
     await racePage.close();
   }
+  // 已有运行读取未完成时切换回样例：迟到成功或失败均不得污染新页面。
+  for (const responseStatus of [200, 503]) {
+    const racePage = await browser.newPage();
+    await localSite(racePage.context());
+    let release, arrived;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const requested = new Promise((resolve) => {
+      arrived = resolve;
+    });
+    await racePage.route("**/api/v1/runs/run_saved_review", async (route) => {
+      arrived();
+      await gate;
+      await route.fulfill({
+        status: responseStatus,
+        json: {
+          run_id: "run_saved_review",
+          task_type: "research_verification",
+          status: "succeeded",
+        },
+      });
+    });
+    await racePage.goto(base);
+    await racePage.locator(".card").first().waitFor();
+    await racePage.locator("#live").click();
+    await racePage.locator("#api-base").fill(base + "/api/v1");
+    await racePage.locator("#saved-run-id").fill("run_saved_review");
+    await racePage.locator("#load-existing").click();
+    await requested;
+    await racePage.locator("#sample").click();
+    release();
+    await racePage.waitForLoadState("networkidle");
+    await racePage.locator(".card").first().waitFor();
+    assert.equal(await racePage.locator(".card").count(), 9);
+    assert.equal(
+      await racePage.locator("#mode-badge").textContent(),
+      "接口演示样例",
+    );
+    assert.ok(
+      !(await racePage.locator("#status").textContent()).includes("操作失败"),
+    );
+    await racePage.close();
+  }
+  // 本地工程编辑的历史运行不得显示成云端生成质量验收。
+  {
+    const archivePage = await browser.newPage();
+    await localSite(archivePage.context());
+    const archived = structuredClone(demo.results[5]);
+    archived.run_id = "run_engineering_review";
+    const requests = [];
+    await archivePage.route("**/api/v1/**", async (route) => {
+      requests.push(route.request().method());
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/result"))
+        await route.fulfill({ json: archived });
+      else if (url.pathname.endsWith("/events"))
+        await route.fulfill({ json: { events: [], next_cursor: null } });
+      else
+        await route.fulfill({
+          json: {
+            run_id: archived.run_id,
+            task_type: archived.task_type,
+            status: archived.status,
+            model_id: "local-ai-engineering-draft",
+          },
+        });
+    });
+    await archivePage.goto(base);
+    await archivePage.locator(".card").first().waitFor();
+    await archivePage.locator("#live").click();
+    await archivePage.locator("#api-base").fill(base + "/api/v1");
+    await archivePage.locator("#saved-run-id").fill(archived.run_id);
+    await archivePage.locator("#load-existing").click();
+    await archivePage.locator(".archived-provenance").waitFor();
+    assert.match(
+      await archivePage.locator("#summary").textContent(),
+      /本地 AI 工程修订稿，不代表云端生成质量通过或真人裁决/,
+    );
+    assert.equal(
+      await archivePage
+        .locator(".archived-provenance")
+        .getAttribute("data-run-model"),
+      "local-ai-engineering-draft",
+    );
+    assert.deepEqual(
+      JSON.parse(await archivePage.locator("#raw").textContent()),
+      archived,
+    );
+    assert.ok(
+      requests.length >= 2 && requests.every((method) => method === "GET"),
+    );
+    await archivePage.close();
+  }
   await page.goto(base);
   await page.getByText("接口演示样例", { exact: true }).waitFor();
   await page.locator(".card").first().waitFor();
