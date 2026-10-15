@@ -154,7 +154,7 @@ class Orchestrator:
                 documents=self.documents,
                 parse=self.parse,
                 events=self.events,
-                model=self.model,
+                model=self._run_model(payload, self.events),
                 settings=self.settings,
             )
             for document_id in document_ids:
@@ -379,7 +379,7 @@ class Orchestrator:
             documents=self.documents,
             parse=self.parse,
             events=sink,
-            model=self.model,
+            model=self._run_model(payload, sink, replay=True),
             settings=self.settings,
         )
         output = plugin.run(context, task_input)
@@ -759,6 +759,15 @@ class Orchestrator:
             touch_error=touch_error,
         )
 
+    def _run_model(self, payload, events, *, replay=False):
+        from app.models.pinned import PinnedRunModel
+
+        expected = {event["input_hash"]: event["output_hash"]
+                    for event in self.events.all_events(payload["run_id"])
+                    if event["tool_name"] == "model.infer_json"}
+        versions = {key: payload[key] for key in ("model_id", "model_revision", "prompt_version")}
+        return PinnedRunModel(self.model, payload["run_id"], self.settings, events, versions, expected, replay=replay)
+
     def _input_bundle(self, document_ids: list[str], task_type: str, task_input: dict[str, Any]) -> dict[str, Any]:
         documents = []
         for document_id in document_ids:
@@ -780,6 +789,8 @@ class Orchestrator:
             "documents": documents,
             "code_version": self.settings.code_version,
             "prompt_version": self.settings.prompt_version,
+            "model_id": self.settings.model_id,
+            "model_revision": self.settings.model_revision,
         }
 
     @staticmethod

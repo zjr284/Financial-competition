@@ -89,6 +89,8 @@ class OfflineRuleModel:
         schema_name: str,
         context: dict[str, Any],
     ) -> dict[str, Any]:
+        if schema_name in {"IndustryData", "MemoData"}:
+            raise AppError("MODEL_UNAVAILABLE", "离线规则后端不生成语义分析；请显式配置模型服务")
         result = self.infer(task_code, evidence_ids, schema_name, context)
         return result.output
 
@@ -153,12 +155,7 @@ class OfflineRuleModel:
 
 
 class RemoteJsonModel:
-    """远程 JSON 模型适配器骨架。
-
-    交付说明里要求“不能提供的第三方模型权重只提供调用说明与版本信息”，
-    因此这里只定义接口与校验，不内置任何密钥；密钥从环境变量读取，
-    未配置时按 MODEL_UNAVAILABLE 失败并把原因写进 Run.error。
-    """
+    """Configured chat-completions JSON transport; credentials never enter records."""
 
     def __init__(self, settings: Settings, *, endpoint_env: str = "FINSCOPE_MODEL_ENDPOINT", key_env: str = "FINSCOPE_MODEL_KEY") -> None:
         import os
@@ -167,10 +164,28 @@ class RemoteJsonModel:
         self.endpoint = os.environ.get(endpoint_env)
         self.api_key = os.environ.get(key_env)
         self.calls: list[ModelCallRecord] = []
+        self.last_success = False
+        self.timeout = float(os.environ.get("FINSCOPE_MODEL_TIMEOUT_SECONDS", "60"))
+        self.max_attempts = int(os.environ.get("FINSCOPE_MODEL_MAX_ATTEMPTS", "2"))
+        if not 0 < self.timeout <= 300 or not 1 <= self.max_attempts <= 3:
+            raise ValueError("Invalid model timeout or attempt limit")
+        if self.endpoint:
+            from urllib.parse import urlsplit
+            url = urlsplit(self.endpoint)
+            if url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password or url.query or url.fragment:
+                raise ValueError("Model endpoint must be a credential-free HTTP(S) URL")
+            if not url.path.rstrip("/").endswith("/chat/completions"):
+                raise ValueError("Model endpoint must include the full /chat/completions path")
 
     @property
     def available(self) -> bool:
-        return bool(self.endpoint)
+        return bool(self.endpoint and self.settings.model_id != "rule-based-offline")
+
+    def health(self) -> dict[str, Any]:
+        return {"backend": "remote-json", "model_id": self.settings.model_id,
+                "model_revision": self.settings.model_revision, "prompt_version": self.settings.prompt_version,
+                "configured": self.available, "available": self.last_success,
+                "reason": "最近调用已通过协议与结构校验" if self.last_success else "尚无成功调用；不以配置存在代表服务连通"}
 
     def infer_json(
         self,
@@ -182,10 +197,24 @@ class RemoteJsonModel:
         if not self.available:
             raise AppError(
                 "MODEL_UNAVAILABLE",
-                "未配置远程模型端点，无法执行模型推理",
+                "未配置完整模型端点和模型名，无法执行模型推理",
                 details={"task_code": task_code, "schema_name": schema_name},
             )
-        raise NotImplementedError("接入具体模型服务时实现 HTTP 调用并复用 ModelCallRecord 记录版本")
+        from app.models.remote import request_json
+        import time
+
+        started = time.perf_counter()
+        self.last_success = False
+        output, attempts = request_json(self, task_code, evidence_ids, schema_name, context)
+        self.calls.append(ModelCallRecord(
+            model_id=self.settings.model_id, model_revision=self.settings.model_revision,
+            prompt_version=self.settings.prompt_version, task_code=task_code,
+            schema_name=schema_name, evidence_ids=list(evidence_ids),
+            input_hash=model_input_hash(evidence_ids, context), output_hash=stable_hash(output),
+            called_at=now_iso(), latency_ms=int((time.perf_counter() - started) * 1000), attempts=attempts,
+        ))
+        self.last_success = True
+        return output
 
 
 def model_input_hash(evidence_ids: list[str], context: dict[str, Any]) -> str:

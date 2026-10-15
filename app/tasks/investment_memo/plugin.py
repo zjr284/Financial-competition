@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.facts import METRICS
 from app.tasks._finance_common import (
     review_item,
     source_ids_for_statements,
@@ -12,31 +11,15 @@ from app.tasks._finance_common import (
     validate_task_data,
 )
 from contracts.ports import TaskContext
+from app.tasks.synthesis_sources import sources
 
 
 class InvestmentMemoTask:
     task_type = "investment_memo"
 
     def run(self, context: TaskContext, task_input: dict[str, Any]) -> dict[str, Any]:
-        source_items = context.evidence.extract_facts(
-            list(context.document_ids), list(METRICS) + ["industry_event"]
-        )
-        source_items = [
-            item for item in source_items
-            if item.get("company_code") in {task_input["company_code"], None}
-            and item.get("review_status") in {None, "verified"}
-            and item.get("period_end", task_input["as_of_date"]) <= task_input["as_of_date"]
-        ]
-        # 已归档不代表截至分析日已披露；丢弃未来披露或无法确认时点的来源。
-        eligible = []
-        for item in source_items:
-            document_ids = {context.evidence.get_evidence(eid)["document_id"] for eid in item.get("evidence_ids", [])}
-            if not document_ids or not hasattr(context.documents, "get_document"):
-                continue
-            dates = [context.documents.get_document(doc_id).get("disclosure_date") for doc_id in document_ids]
-            if all(day is not None and day <= task_input["as_of_date"] for day in dates):
-                eligible.append(item)
-        source_items = eligible
+        source_items = sources(context, company=task_input['company_code'],
+                               as_of_date=task_input['as_of_date'], financial=True)
         known_ids = unique(
             evidence_id for item in source_items
             for evidence_id in item.get("evidence_ids", [])
