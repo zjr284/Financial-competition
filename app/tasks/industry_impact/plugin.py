@@ -43,12 +43,22 @@ class IndustryImpactTask:
                 "event_description": task_input["event_description"],
                 "scenario_ids": task_input["scenario_ids"],
                 "source_items": source_items,
-                "instructions_version": "industry-scoped-sources-v2",
+                "instructions_version": "industry-scoped-sources-v4",
                 "instructions": (
                     "Use only archived evidence IDs; distinguish observed facts from hypothetical transmission paths. "
                     "Respect the company and product scope of each excerpt. Attribute management self-assessments "
                     "to their report, not to independent verification. disclosure_date is publication date, "
                     "not the reporting period. An older strategic intention does not prove later execution."
+                    " Respond in Chinese. Keep family/commercial storage claims within that segment; "
+                    "overseas coverage does not establish the focus of the entire storage business or "
+                    "domestic business shares. Core regions do not establish principal revenue sources "
+                    "without regional revenue data. Every management assertion must explicitly say "
+                    "the report states it, including safety/reliability improvements."
+                    " Apply these limits to every edge, scenario, conclusion and assumption. Missing "
+                    "domestic business data means insufficient evidence, not a demonstrated market "
+                    "isolation or transmission barrier. Do not assume an undisclosed domestic business "
+                    "is small or unable to offset other effects. Do not infer limited company-wide "
+                    "impact from a disclosed overseas segment."
                 ),
             },
         )

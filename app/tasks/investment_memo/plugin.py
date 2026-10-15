@@ -50,7 +50,7 @@ class InvestmentMemoTask:
                 "company_code": task_input["company_code"],
                 "as_of_date": task_input["as_of_date"],
                 "source_items": source_items,
-                "instructions_version": "memo-qualitative-local-financial-v5",
+                "instructions_version": "memo-qualitative-local-financial-v7",
                 "instructions": (
                     "Only qualitative excerpts are supplied. Do not invent financial amounts, ratios or "
                     "growth rates; verified financial facts are appended locally after your response. "
@@ -71,6 +71,14 @@ class InvestmentMemoTask:
                     " Distinguish reporting periods; disclosure_date is publication date, not the reporting "
                     "period. Attribute management self-assessments to the report, and do not treat an older "
                     "strategy statement as proof of later execution."
+                    " Respond in Chinese. Explicitly attribute safety/reliability improvement claims "
+                    "to the company report; these are not independently verified. Overseas coverage of "
+                    "family/commercial storage describes only that segment, not the whole storage business "
+                    "or domestic business shares. Core regions do not establish principal overseas "
+                    "revenue sources without regional revenue data, even as an assumption."
+                    " If a statement spans consecutive excerpts, cite every supporting continuation "
+                    "on that statement itself. A page header does not support a substantive claim. "
+                    "If the needed continuation is not supplied, shorten the claim to the cited text."
                 ),
             },
         )
