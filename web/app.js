@@ -322,7 +322,12 @@ function renderDisclosure(result) {
       ),
       node("p", `固定文档：${record.document_id}`, "reason"),
     );
-    for (const field of record.fields) {
+    const metadata = new Set(["document_id", "company_code", "event_date"]);
+    const orderedFields = [
+      ...record.fields.filter((field) => !metadata.has(field.field_code)),
+      ...record.fields.filter((field) => metadata.has(field.field_code)),
+    ];
+    for (const field of orderedFields) {
       const card = node("article", undefined, "card field-card");
       card.dataset.field = field.field_code;
       card.append(

@@ -111,7 +111,12 @@ try {
     document.body.append(banner);
   });
   const pause = async () => {
-    if (recording) await page.waitForTimeout(4500);
+    if (recording) {
+      await page
+        .locator("#results")
+        .evaluate((element) => element.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(4500);
+    }
   };
   await page.getByRole("button", { name: "连接团队 API" }).click();
   await page.locator("#api-base").fill(api);
