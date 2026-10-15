@@ -5,11 +5,14 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from app.config import Settings
 from app.container import build_app
 from demo.live_fixtures import seed
 from demo.verify_draft import verify
+from app.orchestrator.service import Orchestrator
+from app.tasks.research_verification.support import digest
 
 
 class VerifyDraftTests(unittest.TestCase):
@@ -39,6 +42,11 @@ class VerifyDraftTests(unittest.TestCase):
             self.assertFalse(result['human_gold_complete'])
             self.assertEqual(len(result['runs']), 2)
             self.assertTrue(all(run['replay_verified'] for run in result['runs']))
+            for entry in result['runs']:
+                saved_run = json.loads((root / 'review' / (entry['task_type']+'-run.json')).read_text())
+                saved_result = json.loads((root / 'review' / (entry['task_type']+'-result.json')).read_text())
+                self.assertEqual(entry['result_hash'], saved_run['result_hash'])
+                self.assertEqual(entry['content_hash'], digest(saved_result))
             checks = json.loads((root / 'review/research_verification-result.json').read_text(encoding='utf-8'))
             self.assertEqual(checks['data']['summary'], {'correct': 2, 'incorrect': 2, 'needs_review': 5})
             for person in ('a', 'b'):
@@ -66,6 +74,28 @@ class VerifyDraftTests(unittest.TestCase):
                     verify(root / 'source', root / 'draft.pdf', '300207', ids,
                            output, dataset='development')
                 self.assertFalse(output.exists())
+
+    def test_invalid_event_chain_cannot_be_reported_as_verified_replay(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            app = build_app(Settings(data_dir=root/'source'))
+            try:
+                seeded = seed(app)
+                raw, _ = app.get_document_content(seeded['documents']['draft'])
+            finally:
+                app.close()
+            draft = root/'draft.pdf'
+            draft.write_bytes(raw)
+            original = Orchestrator.replay
+            def broken_chain(instance, run_id):
+                proof = original(instance, run_id)
+                proof['chain']['ok'] = False
+                return proof
+            with patch.object(Orchestrator, 'replay', broken_chain):
+                with self.assertRaisesRegex(ValueError, '重放不一致'):
+                    verify(root/'source', draft, '999999', [seeded['documents']['source']],
+                           root/'review', dataset='synthetic-development', synthetic=True)
+            self.assertFalse((root/'review'/'summary.json').exists())
 
 
 if __name__ == '__main__':

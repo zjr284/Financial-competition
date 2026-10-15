@@ -97,13 +97,14 @@ def verify(source_store, draft, company, source_ids, output, *, dataset, synthet
             replay = app.orchestrator.replay(run['run_id'])
             write(output / f'{kind}-replay.json', replay)
             replay_ok = all(replay[key] for key in (
-                'input_hash_match', 'result_hash_match', 'trace_match', 'result_original_matches'))
+                'input_hash_match', 'result_hash_match', 'trace_match', 'result_original_matches')) and replay['chain']['ok']
             if not replay_ok:
                 raise ValueError(f'{kind} 离线重放不一致；保留私有记录供排查')
             app.export_run(run['run_id'], formats=['json', 'csv', 'html'],
                            out_dir=str(output / f'{kind}-exports'))
             inventory.append({'task_type': kind, 'run_id': run['run_id'],
-                              'status': run['status'], 'result_hash': digest(result),
+                              'status': run['status'], 'result_hash': run['result_hash'],
+                              'content_hash': digest(result),
                               'replay_verified': replay_ok})
             if kind == 'research_verification':
                 blank = template(result, dataset, company, 'development', synthetic)
