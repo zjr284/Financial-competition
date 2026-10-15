@@ -316,3 +316,9 @@ review_items: review_WGEIL7F72H3YMY3GOP4V → target_id=event_QI6OXT3MFSSPR5DI36
 ## 2026-10-14：估值专用服务端导出
 
 app/export/valuation.py 与编排器导出路径已支持估值 CSV/HTML、完整计算引用和固定事实快照来源。旧 Run 不从总事实清单补值，来源哈希与原运行事件一致后才展开原始值；JSON 的 TaskResult 内容保持不变。导出日志仅保留摘要/结果与来源快照哈希/产物哈希，不记录本机绝对路径。运行和成功/待复核样例见 app/tasks/valuation/VALIDATION_20261014.md，公共 API 路径仍为冻结的 10 条。
+
+## 2026-10-15：A/B 统一入口与本地财务附录
+
+app.tasks.ab_runtime 覆盖五类 A/B 任务；接收既有 RunRequest 私有文件，统一装配、导出和重放。纯工具任务不依赖云端配置，重放自动恢复原模型／提示／提取参数并核对实际源码版本及输入元数据；缺快照不回退网络或全局事实。B 备忘录先验证定性模型引用，再本地追加最多四项已复核原始财务事实，保留原期间／合并／重述／证据，不当作 TTM 或模型计算。
+
+全仓 357 passed，契约仍为 7 requests / 7 results / 7 entities / 10 paths。运行命令、成功／待复核／失败样例及 C 后续动作见 [交付说明](AB统一运行与本地财务备忘录.md)。C 的真实框选、人工标注与留出集不由本次工程测试代签。
