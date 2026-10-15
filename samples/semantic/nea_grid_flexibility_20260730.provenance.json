@@ -1,0 +1,12 @@
+{
+  "url": "https://www.nea.gov.cn/20260730/44149332963f44e3896720d8c02b9cc7/c.html",
+  "publication_date": "2026-07-30",
+  "excerpt_sha256": "e603bba5ea99282dbddbff07083c4aac3909e3fb8201cabf6f6ad9ff3a1dd1fa",
+  "archive_method": "Selected paragraph from official webpage verified through browser; direct HTML request disconnected. Hash fixes the excerpt TXT only, not the original HTML.",
+  "human_reviewed": false,
+  "filename": "nea_grid_flexibility_20260730_excerpt.txt",
+  "source_scope": "industry",
+  "company_code": null,
+  "purpose": "Qualitative source registration and scope demo only; not proof of company orders or financial outcomes.",
+  "sha256_basis": "excerpt TXT bytes; not full original webpage"
+}

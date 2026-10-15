@@ -45,7 +45,7 @@ class InvestmentMemoTask:
                 "company_code": task_input["company_code"],
                 "as_of_date": task_input["as_of_date"],
                 "source_items": source_items,
-                "instructions_version": "memo-economic-subject-v3",
+                "instructions_version": "memo-scoped-sources-v4",
                 "instructions": (
                     "Cite only archived evidence; separate fact, calculation, inference and opinion; "
                     "include risks and disconfirming conditions. Attribute disclosed statements to their source. "
@@ -61,6 +61,9 @@ class InvestmentMemoTask:
                     "For customer component cost pressure, limit conclusions to conditional changes "
                     "in customer demand or bargaining pressure; do not say the focus company's own "
                     "product pricing must pass through that component cost. Keep the draft concise."
+                    " Distinguish reporting periods; disclosure_date is publication date, not the reporting "
+                    "period. Attribute management self-assessments to the report, and do not treat an older "
+                    "strategy statement as proof of later execution."
                 ),
             },
         )
