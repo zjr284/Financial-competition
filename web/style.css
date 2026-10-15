@@ -278,6 +278,20 @@ blockquote {
   border-top: 1px solid #dbe5e9;
   padding: 13px 0;
 }
+.fact-input {
+  border-left: 3px solid #dbe5e9;
+  padding: 8px 12px;
+  margin: 10px 0;
+}
+.calculation-card {
+  padding: 12px;
+  margin: 10px 0;
+  background: white;
+  border: 1px solid #dbe5e9;
+}
+.ttm-card:target {
+  outline: 2px solid var(--teal);
+}
 footer {
   padding: 22px 4vw;
   text-align: center;
