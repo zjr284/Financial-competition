@@ -7,6 +7,7 @@
   FINSCOPE_MAX_FILE_MB   单文件上限，默认 50
   FINSCOPE_MAX_PDF_PAGES 单 PDF 页数上限，默认 300
   FINSCOPE_OCR_ENABLED   是否允许 OCR 适配器，默认 0（离线环境无 OCR 引擎）
+  FINSCOPE_OCR_MAX_PAGES 每份文件最多识别的无文本页数，默认 20，上限 300
   FINSCOPE_RUN_STALE_SECONDS  running 悬挂多久判定为失联，默认 900 秒
   FINSCOPE_MODEL_ID      模型标识，默认 rule-based-offline
   FINSCOPE_MODEL_REVISION 模型修订号
@@ -62,6 +63,7 @@ class Settings:
     max_file_bytes: int = field(default_factory=lambda: _env_int("FINSCOPE_MAX_FILE_MB", 50) * 1024 * 1024)
     max_pdf_pages: int = field(default_factory=lambda: _env_int("FINSCOPE_MAX_PDF_PAGES", 300))
     ocr_enabled: bool = field(default_factory=lambda: _env_bool("FINSCOPE_OCR_ENABLED", False))
+    ocr_max_pages: int = field(default_factory=lambda: _env_int("FINSCOPE_OCR_MAX_PAGES", 20))
     # running 悬挂多久判定为失联（进程被杀/断电后没有机会写终态）
     run_stale_seconds: int = field(default_factory=lambda: _env_int("FINSCOPE_RUN_STALE_SECONDS", 900))
     model_id: str = field(default_factory=lambda: os.environ.get("FINSCOPE_MODEL_ID", "rule-based-offline"))
@@ -76,6 +78,10 @@ class Settings:
     line_y_tolerance: float = 3.0
     # OCR 置信度低于该值必须进入 needs_review
     ocr_confidence_floor: float = 0.60
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.ocr_max_pages <= 300:
+            raise ValueError("FINSCOPE_OCR_MAX_PAGES 必须在 1—300 之间")
 
     # ---- 派生路径 ----
     @property

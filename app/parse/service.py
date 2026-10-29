@@ -15,7 +15,8 @@ from app.config import Settings
 from app.errors import AppError
 from app.ingest.service import DocumentService
 from app.parse import pdfpos, sources
-from app.parse.index import DocumentIndex
+from app.parse.index import DocumentIndex, LineRecord
+from app.models.ocr import OcrAdapter
 from app.storage.db import Store
 
 
@@ -50,6 +51,7 @@ class ParseService:
         self.store = store
         self.documents = documents
         self.settings = settings
+        self.ocr = OcrAdapter(settings)
 
     # ------------------------------------------------------------ 主入口
     def parse_document(self, document_id: str, *, force: bool = False) -> ParseManifest:
@@ -152,16 +154,36 @@ class ParseService:
             if empty_pages:
                 warnings.append(f"以下页面无文本层，数字不清时需人工复核：{empty_pages[:20]}")
                 needs_review = True
-            if not index.has_text_layer:
-                status = "failed"
-                warnings.append("无法获取任何文本层；OCR 引擎不可用时必须人工录入或补齐 OCR 依赖")
+                if self.ocr.available:
+                    try:
+                        provenance = self.ocr.provenance()
+                        recognized, ocr_warnings = self.ocr.recognize_pdf(payload, empty_pages)
+                        warnings.extend(ocr_warnings)
+                        for page in index.pages:
+                            for result in recognized.get(page.page, []):
+                                page.lines.append(LineRecord(
+                                    page=page.page, kind="ocr", text=result["text"], bbox=result["bbox"],
+                                    char_start=0, char_end=0, confidence=result["confidence"]))
+                            page.rebuild_text()
+                        if any(recognized.values()):
+                            index.backend += "+rapidocr"
+                            warnings.extend([f"OCR 来源：{provenance}",
+                                             "OCR 识别结果均须人工复核；检测框不等于财务表格单元格，未恢复表格拓扑"])
+                    except Exception as exc:
+                        warnings.append(f"OCR 初始化或渲染失败（{type(exc).__name__}），仍需人工复核")
+                else:
+                    warnings.append(self.ocr.availability.reason)
                 if not self.settings.ocr_enabled:
                     warnings.append("FINSCOPE_OCR_ENABLED=0，本次未尝试 OCR")
+            if not any(page.text.strip() for page in index.pages):
                 raise AppError(
                     "DOCUMENT_PARSE_FAILED",
-                    "该 PDF 无文本层且 OCR 不可用，无法生成带坐标的证据",
+                    "该 PDF 无文本层且 OCR 未产生文字，无法生成带坐标的证据",
                     details={"document_id": document_id, "page_count": page_count, "warnings": warnings},
                 )
+            remaining = [p.page for p in index.pages if not p.text.strip()]
+            if remaining:
+                warnings.append(f"仍有未识别页面：{remaining[:20]}，当前仅为部分解析结果")
             status = "parsed"
             low_confidence = [
                 line.bbox

@@ -183,7 +183,7 @@ class DocumentIndex:
             bbox,
             snippet,
             method=method or ("table" if kind == "table" else kind),
-            confidence=confidence if confidence is not None else (span_lines[0].confidence if span_lines else 1.0),
+            confidence=confidence if confidence is not None else min((line.confidence for line in span_lines), default=1.0),
             table_id=span_lines[0].table_id if span_lines else None,
             row=span_lines[0].row if span_lines else None,
             column=span_lines[0].column if span_lines else None,
